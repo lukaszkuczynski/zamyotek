@@ -14,12 +14,15 @@ class MqttNode:
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.connect(hostname, port, 60)
-        self.client.loop_forever()
+        if topic_sub != "":
+            self.client.loop_forever()
 
     def on_connect(self, client, userdata, flags, rc):
         print("Connected with result code "+str(rc))
-        self.client.subscribe(self.topic_sub)
-        self.send("connected!")
+        if self.topic_sub != "":
+            self.client.subscribe(self.topic_sub)
+            self.send("connected!")
+        print("connected")
 
     def on_message(self, client, userdata, msg):
         msg['sender'] = self.nodename
@@ -36,4 +39,4 @@ class MqttNode:
         self.client.publish(self.topic_pub, json.dumps(message))
 
 
-node = MqttNode("testnode", "/test/pub", "/test/sub")
+#node = MqttNode("testnode", "/test/pub", "/test/sub")

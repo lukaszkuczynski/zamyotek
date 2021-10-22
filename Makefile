@@ -5,4 +5,4 @@ run:
 	python mqtt_node.py
 
 camera:
-	python ./detectnet-camera.py --camera=/dev/video0
+	python3 ./detectnet-camera.py --camera=/dev/video0
