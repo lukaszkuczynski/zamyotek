@@ -6,3 +6,6 @@ run:
 
 camera:
 	python3 ./detectnet-camera.py --camera=/dev/video0
+
+brain:
+	python3 ./brain.py

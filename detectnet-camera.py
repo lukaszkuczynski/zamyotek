@@ -63,12 +63,11 @@ import json
 class CameraNode(MqttNode):
     def __init__(self, classes_to_check):
         self.classes_to_check = classes_to_check
-        super().__init__("center", "center_pub", "")
+        super().__init__("center", "camera_out", "")
 
     def send_center(self, center_boundaries):
         if center_boundaries['class_id'] in self.classes_to_check:
-            msg = json.dumps(center_boundaries)
-            self.send(msg)
+            self.send(center_boundaries)
 
 # only person class id to report
 camera_node = CameraNode(set([1]))
