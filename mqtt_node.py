@@ -1,5 +1,6 @@
 import paho.mqtt.client as mqtt
 import json
+import serial
 
 
 class MqttNode:
@@ -21,11 +22,10 @@ class MqttNode:
         print("Connected with result code "+str(rc))
         if self.topic_sub != "":
             self.client.subscribe(self.topic_sub)
-            self.send("connected!")
+            print("subscribed to %s" % self.topic_sub)
         print("connected")
 
     def on_message(self, client, userdata, msg):
-        msg['sender'] = self.nodename
         print(msg.topic+" "+str(msg.payload))
 
     def send(self, message):
@@ -39,4 +39,29 @@ class MqttNode:
         self.client.publish(self.topic_pub, json.dumps(message))
 
 
-#node = MqttNode("testnode", "/test/pub", "/test/sub")
+
+class MqttToSerialNode(MqttNode):
+
+    def __init__(self, nodename, topic_sub, port_name, baudrate):
+        self.serial_port = self.__create_serial(port_name, baudrate)
+        super().__init__(nodename, "", topic_sub)
+        self.port_name = port_name
+        self.baudrate = baudrate
+
+
+    def __create_serial(self, port_name, baudrate):
+        return serial.Serial(
+            port=port_name, 
+            baudrate = baudrate,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.EIGHTBITS,
+            timeout=1
+        )
+
+    def on_message(self, client, userdata, msg):
+        command = json.loads(msg.payload)
+        print(command)
+        command_encoded = (command['msg']+"\n").encode("ascii")
+        self.serial_port.write(command_encoded)
+

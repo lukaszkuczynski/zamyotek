@@ -69,7 +69,8 @@ class CameraNode(MqttNode):
         if center_boundaries['class_id'] in self.classes_to_check:
             self.send(center_boundaries)
 
-# only person class id to report
+# class id to report
+# 1 - person, 37 - sportsball
 camera_node = CameraNode(set([1]))
 
 # process frames until the user exits
