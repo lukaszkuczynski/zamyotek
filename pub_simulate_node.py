@@ -1,6 +1,7 @@
 from mqtt_node import MqttNode
 import time
 from argparse import ArgumentParser
+import json
 
 class SimPubNode(MqttNode):
 
@@ -14,7 +15,10 @@ class SimPubNode(MqttNode):
     def __loop(self):
         while True:
             value = self.value
-            msg = {self.key: value}
+            if isinstance(value, str) and "{" in value:
+                msg = json.loads(value)
+            else:
+                msg = {self.key: value}
             self.send(msg)
             time.sleep(1)
 

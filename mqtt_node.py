@@ -20,8 +20,13 @@ class MqttNode:
 
     def on_connect(self, client, userdata, flags, rc):
         print("Connected with result code "+str(rc))
+
         if self.topic_sub != "":
-            self.client.subscribe(self.topic_sub)
+            if isinstance(self.topic_sub, list):
+                topics = [(name,1) for name in self.topic_sub]
+            else:
+                topics = self.topic_sub
+            self.client.subscribe(topics)
             print("subscribed to %s" % self.topic_sub)
         print("connected")
 
