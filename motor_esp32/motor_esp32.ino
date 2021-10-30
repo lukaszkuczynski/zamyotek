@@ -1,9 +1,14 @@
 #include <ArduinoJson.h>
+#include <ESP32Servo.h>
 
 const int leftFout = 18; 
 const int leftBout = 5; 
 const int rightFout = 19; 
 const int rightBout = 21; 
+
+Servo leftServo;
+int leftServoPin = 22;
+
 
 const int DISTANCE_SENSOR_PIN = 4;
 
@@ -13,6 +18,14 @@ const int leftF = 0;
 const int leftB = 1;
 const int rightF = 2;
 const int rightB = 3;
+
+const int stepper = 4;
+
+const int leftServoOpened = 90;
+const int leftServoClosed = 180;
+
+
+
 const int resolution = 8;
 
 #define TURNING_TIME 150
@@ -31,8 +44,10 @@ void setup(){
   ledcAttachPin(rightFout, rightF);
   ledcAttachPin(rightBout, rightB);
 
-  pinMode(DISTANCE_SENSOR_PIN, INPUT);
+  leftServo.setPeriodHertz(50);    // standard 50 hz servo
+  leftServo.attach(leftServoPin, 500, 2400); 
 
+  leftServo.write(leftServoOpened);
   Serial.begin(115200); 
 }
 
@@ -72,17 +87,19 @@ void loop(){
       allStop();
       ledcWrite(leftF, aheadSpeed);
       ledcWrite(rightF, aheadSpeed);
+    } else if (command.equals("open_gate")) {
+       leftServo.write(leftServoOpened);
+    } else if (command.equals("close_gate")) {
+       leftServo.write(leftServoClosed);
     }
   }
 
 
-  msg["topic"] = "distance";
-  msg["millis"]   =  millis();
-  msg["distance"] = digitalRead(DISTANCE_SENSOR_PIN);
-
-
-  serializeJson(msg, Serial);
-  Serial.println("");
+//  msg["topic"] = "distance";
+//  msg["millis"]   =  millis();
+//  msg["distance"] = digitalRead(DISTANCE_SENSOR_PIN);
+//  serializeJson(msg, Serial);
+//  Serial.println("");
 
 //  for (int i = 0; i < 100 ; i=i+3) {
 //    Serial.printf("speed %d \n", i);
