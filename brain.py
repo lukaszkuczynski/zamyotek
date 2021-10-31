@@ -7,7 +7,11 @@ from itertools import filterfalse
 
 SIDE_AREA_PROPORTION = .3335
 TOTAL_WID = 1280
-CLOSE_GATE_DISTANCE = 50
+CLOSE_GATE_DISTANCE = 100
+
+TOPIC_SENSOR_DISTANCE = "/sensor/distance"
+TOPIC_CAMERA = "camera_out"
+TOPIC_MOTOR = "/cmd/motor_move"
 
 class BrainNode(MqttNode):
 
@@ -21,12 +25,12 @@ class BrainNode(MqttNode):
         ]
         print(self.zones)
         self.distance_stack = DistanceStack(3000)
-        super().__init__("brain", "/cmd/motor_move", ["camera_out", "distance"])
+        super().__init__("brain", TOPIC_MOTOR, [TOPIC_CAMERA, TOPIC_SENSOR_DISTANCE])
 
 
     def on_message(self, client, userdata, msg):
         print(msg.topic+" - "+str(msg.payload))
-        if msg.topic == 'camera_out':
+        if msg.topic == TOPIC_CAMERA:
             center_msg = json.loads(msg.payload)
             print(center_msg)
             center_x = center_msg['center'][0]
@@ -46,9 +50,10 @@ class BrainNode(MqttNode):
                                 move_dir = 'stop'
                     self.send(move_dir)
             print(f"avg distance from stack is {self.distance_stack.avg_distance()}")
-        elif msg.topic == 'distance':
+        elif msg.topic == TOPIC_SENSOR_DISTANCE:
+            print("msg on topic DISTANCE")
             distance_msg = json.loads(msg.payload)
-            distance_val = float(distance_msg['msg'])
+            distance_val = float(distance_msg['distance'])
             self.distance_stack.push(distance_val)
 
 

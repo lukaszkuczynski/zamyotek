@@ -70,3 +70,31 @@ class MqttToSerialNode(MqttNode):
         command_encoded = (command['msg']+"\n").encode("ascii")
         self.serial_port.write(command_encoded)
 
+
+class SerialToMqttNode(MqttNode):
+
+    def __init__(self, nodename, topic_pub, port_name, baudrate):
+        self.serial_port = self.__create_serial(port_name, baudrate)
+        super().__init__(nodename, topic_pub, "")
+        self.port_name = port_name
+        self.baudrate = baudrate
+        self.__start_listening()
+
+
+    def __create_serial(self, port_name, baudrate):
+        return serial.Serial(
+            port=port_name, 
+            baudrate = baudrate,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.EIGHTBITS,
+            timeout=1
+        )
+
+    def __start_listening(self):
+        while True:
+            line = self.serial_port.readline()
+            print(line)
+            line_dict = json.loads(line)
+            self.send(line_dict)
+
