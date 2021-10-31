@@ -1,4 +1,3 @@
-#include <ArduinoJson.h>
 #include <ESP32Servo.h>
 
 const int leftFout = 18; 
@@ -9,8 +8,6 @@ const int rightBout = 21;
 Servo leftServo;
 int leftServoPin = 22;
 
-
-const int DISTANCE_SENSOR_PIN = 4;
 
 // setting PWM properties
 const int freq = 50;
@@ -52,7 +49,6 @@ void setup(){
 }
 
 
-DynamicJsonDocument msg(1024);
 
 void allStop() {
   ledcWrite(leftF, 0);
@@ -93,13 +89,6 @@ void loop(){
        leftServo.write(leftServoClosed);
     }
   }
-
-
-//  msg["topic"] = "distance";
-//  msg["millis"]   =  millis();
-//  msg["distance"] = digitalRead(DISTANCE_SENSOR_PIN);
-//  serializeJson(msg, Serial);
-//  Serial.println("");
 
 //  for (int i = 0; i < 100 ; i=i+3) {
 //    Serial.printf("speed %d \n", i);
