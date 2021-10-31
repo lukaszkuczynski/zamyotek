@@ -3,7 +3,7 @@ build:
 
 
 camera:
-	python3 ./detectnet-camera.py --camera=/dev/video0
+	python3 ./detectnet-camera.py --camera=/dev/video0 --network=ssd-inception-v2
 
 brain:
 	python3 ./brain.py
