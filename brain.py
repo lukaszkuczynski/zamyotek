@@ -7,7 +7,7 @@ from itertools import filterfalse
 
 SIDE_AREA_PROPORTION = .3335
 TOTAL_WID = 1280
-CLOSE_GATE_DISTANCE = 100
+CLOSE_GATE_DISTANCE = 40
 
 TOPIC_SENSOR_DISTANCE = "/sensor/distance"
 TOPIC_CAMERA = "camera_out"
