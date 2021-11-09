@@ -32,5 +32,5 @@ void loop()
   serializeJson(msg, Serial);
   Serial.println("");
   //Delay 50ms before next reading.
-  delay(500);
+  delay(100);
 }

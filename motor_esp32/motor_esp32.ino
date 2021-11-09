@@ -6,30 +6,38 @@ const int leftEnable = 25;
 
 const int rightB = 33;
 const int rightF = 32; 
-const int rightEnable = 19; 
+const int rightEnable = 13; 
 
-Servo leftServo;
-int leftServoPin = 20;
+//Servo leftServo;
+int leftServoPin = 14;
 
 
 // setting PWM properties
-const int freq = 30000;
+const int freq = 50;
 const int leftMotor = 2;
-const int rightMotor = 1;
+const int rightMotor = 0;
 
-const int stepper = 4;
+const int servo = 4;
 
-const int leftServoOpened = 90;
-const int leftServoClosed = 180;
+const int servoOpened = 5;
+const int servoClosed = 30;
 
 
 
 const int resolution = 8;
 
-#define TURNING_TIME 150
+#define TURNING_TIME 250
 #define STOP_TIME 100      
+
+#define DEFAULT_SPEED "120"
  
 void setup(){
+    // Allow allocation of all timers
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  
   pinMode(leftF, OUTPUT);
   pinMode(leftB, OUTPUT);  
   pinMode(leftEnable, OUTPUT);  
@@ -46,10 +54,12 @@ void setup(){
   ledcAttachPin(leftEnable, leftMotor);
   ledcAttachPin(rightEnable, rightMotor);
 
-  leftServo.setPeriodHertz(50);    // standard 50 hz servo
-  leftServo.attach(leftServoPin, 500, 2400); 
-
-  leftServo.write(leftServoOpened);
+  ledcSetup(servo, freq, resolution);
+  ledcAttachPin(leftServoPin, servo);
+//  leftServo.setPeriodHertz(50);    // standard 50 hz servo
+//  leftServo.attach(leftServoPin, 500, 2400); 
+//
+  ledcWrite(servo, servoOpened);
   Serial.begin(115200); 
 }
 
@@ -64,9 +74,16 @@ void allStop() {
 
 void loop(){
   if(Serial.available()){
-    int turningSpeed = 200;
-    int aheadSpeed = 180;
-    String command = Serial.readStringUntil('\n');
+    String full_command = Serial.readStringUntil('\n');
+    int i1 = full_command.indexOf(',');
+    int i2 = full_command.indexOf(',', i1+1);
+    String cmd_arg = DEFAULT_SPEED;
+    String command = full_command;
+    if (i1 > 0) {
+      command= full_command.substring(0, i1);
+      cmd_arg = full_command.substring(i1+1);
+    }
+    int turningSpeed = cmd_arg.toInt();
     Serial.printf("Command received %s \n", command);
     if (command.equals("left")) {
       allStop();
@@ -74,24 +91,31 @@ void loop(){
       digitalWrite(rightF, HIGH);
       ledcWrite(leftMotor, turningSpeed);
       ledcWrite(rightMotor, turningSpeed);
+      delay(TURNING_TIME);
+      allStop();
+      delay(STOP_TIME);
     } else if (command.equals("right")) {
       allStop();
       digitalWrite(leftF, HIGH);
       digitalWrite(rightB, HIGH);
       ledcWrite(leftMotor, turningSpeed);
       ledcWrite(rightMotor, turningSpeed);
+      delay(TURNING_TIME);
+      allStop();
+      delay(STOP_TIME);
     } else if (command.equals("stop")) {
       allStop();
     } else if (command.equals("ahead")) {
       allStop();
       digitalWrite(leftF, HIGH);
       digitalWrite(rightF, HIGH);
-      ledcWrite(leftMotor, aheadSpeed);
-      ledcWrite(rightMotor, aheadSpeed);
+      ledcWrite(leftMotor, turningSpeed);
+      ledcWrite(rightMotor, turningSpeed);
     } else if (command.equals("open_gate")) {
-       leftServo.write(leftServoOpened);
+      ledcWrite(servo, servoOpened);
     } else if (command.equals("close_gate")) {
-       leftServo.write(leftServoClosed);
+      ledcWrite(servo, servoClosed);
+//       leftServo.write(leftServoClosed);
     }
   }
 
