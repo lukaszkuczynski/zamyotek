@@ -2,7 +2,7 @@ build:
 	pip install -r requirements.txt
 
 MODEL_NAME=ssd-mobilenet-v2
-MODEL_NAME=ssd-inception-v2
+#MODEL_NAME=ssd-inception-v2
 camera:
 	echo $(MODEL_NAME)
 	python3 ./detectnet-camera.py --camera=/dev/video0 --network=$(MODEL_NAME)

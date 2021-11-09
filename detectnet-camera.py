@@ -71,7 +71,9 @@ class CameraNode(MqttNode):
 
 # class id to report
 # 1 - person, 37 - sportsball
-camera_node = CameraNode(set([1]))
+# 88 teddy bear
+# 64 plant
+camera_node = CameraNode(set([88]))
 
 # process frames until the user exits
 while True:
@@ -89,7 +91,8 @@ while True:
         camera_node.send_center({
             "class_id": detection.ClassID,
             "center": detection.Center,
-            "confidence": detection.Confidence
+            "confidence": detection.Confidence,
+            "width": detection.Width
         })
 
 
