@@ -12,10 +12,14 @@ brain:
 
 ESP32_PORT_MOTORS != dmesg | grep tty | grep attached | grep "usb 1-3.2.2" | tail -n 1 | sed -En "s/.*(tty.*)/\1/p"
 ESP32_PORT_SENSORS != dmesg | grep tty | grep attached | grep "usb 1-3.2.1" | tail -n 1 | sed -En "s/.*(tty.*)/\1/p"
+ESP32_PORT_SERVOS != dmesg | grep tty | grep attached | grep "usb 1-3.2.3" | tail -n 1 | sed -En "s/.*(tty.*)/\1/p"
 
 
 motor:
 	python3 ./motor_mqtt_node.py --port ${ESP32_PORT_MOTORS}
+
+servos:
+	python3 ./servo_mqtt_node.py --port ${ESP32_PORT_SERVOS}
 
 sensor:
 	python3 ./sensor_node.py --port $(ESP32_PORT_SENSORS)

@@ -73,7 +73,7 @@ class CameraNode(MqttNode):
 # 1 - person, 37 - sportsball
 # 88 teddy bear
 # 64 plant
-camera_node = CameraNode(set([88]))
+camera_node = CameraNode(set([37]))
 
 # process frames until the user exits
 while True:

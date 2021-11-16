@@ -11,6 +11,7 @@ CLOSE_GATE_DISTANCE = 30
 TOPIC_SENSOR_DISTANCE = "/sensor/distance"
 TOPIC_CAMERA = "camera_out"
 TOPIC_MOTOR = "/cmd/motor_move"
+TOPIC_SERVO = "/cmd/servo_gate"
 TURNING_TIME_NOOP = 1000
 TOO_CLOSE_OBJECT_WIDTH = 800
 
@@ -60,6 +61,10 @@ class BrainNode(MqttNode):
                                 move_dir = 'stop'
                         if width > TOO_CLOSE_OBJECT_WIDTH:
                             move_dir = 'stop'
+                    if move_dir == 'stop':
+                       self.send_to('close_gate', TOPIC_SERVO)
+                    elif move_dir == 'ahead':
+                       self.send_to('open_gate', TOPIC_SERVO)
                     self.motor_stack.push(move_dir)
                     self.send(move_dir)
             print(f"avg distance from stack is {self.distance_stack.avg_distance()}")

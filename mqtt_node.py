@@ -34,6 +34,9 @@ class MqttNode:
         print(msg.topic+" "+str(msg.payload))
 
     def send(self, message):
+       self.send_to(message, self.topic_pub)
+
+    def send_to(self, message, topic):
         if isinstance(message, str):
             text_message = message
             message = {}
@@ -41,7 +44,7 @@ class MqttNode:
         elif not isinstance(message, dict):
             raise Exception("Message should be dict!")
         message['sender'] = self.nodename
-        self.client.publish(self.topic_pub, json.dumps(message))
+        self.client.publish(topic, json.dumps(message))
 
 
 
