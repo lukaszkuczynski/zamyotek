@@ -87,6 +87,7 @@ class MqttToSerialNode(MqttNode):
         )
 
     def on_message(self, client, userdata, msg):
+        print(msg.payload)
         command = json.loads(msg.payload)
         self.logger.debug("Writing to serial command = %s", command)
         command_encoded = (command['msg']+"\n").encode("ascii")
@@ -115,8 +116,10 @@ class SerialToMqttNode(MqttNode):
 
     def __start_listening(self):
         while True:
-            line = self.serial_port.readline()
+            line_bytes = self.serial_port.readline()
+            line = line_bytes.decode('UTF-8')
             self.logger.debug("Received on serial line = %s", line)
-            line_dict = json.loads(line)
-            self.send(line_dict)
+            if line.startswith('{'):
+                line_dict = json.loads(line)
+                self.send(line_dict)
 

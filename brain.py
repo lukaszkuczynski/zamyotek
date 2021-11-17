@@ -26,7 +26,6 @@ class BrainNode(MqttNode):
             [center_left+1, center_right, "central"],
             [center_right+1, TOTAL_WID, "right"]
         ]
-        self.logger.debug("zones : %s ", self.zones)
         self.distance_stack = DistanceStack(ms_ttl=2000, max_val=1000)
         self.turning_time_noop = TURNING_TIME_NOOP
         self.last_turning_time = datetime.now()

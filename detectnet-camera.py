@@ -62,7 +62,7 @@ import json
 class CameraNode(MqttNode):
     def __init__(self, classes_to_check):
         self.classes_to_check = classes_to_check
-        super().__init__("center", "camera_out", "")
+        super().__init__("camera", "camera_out", "")
 
     def send_center(self, center_boundaries):
         if center_boundaries['class_id'] in self.classes_to_check:
