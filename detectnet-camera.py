@@ -45,7 +45,6 @@ is_headless = ["--headless"] if sys.argv[0].find('console.py') != -1 else [""]
 try:
     opt = parser.parse_known_args()[0]
 except:
-    print("")
     parser.print_help()
     sys.exit(0)
 
@@ -84,10 +83,13 @@ while True:
     detections = net.Detect(img, overlay=opt.overlay)
 
     # print the detections
-    print("detected {:d} objects in image".format(len(detections)))
+    if len(detections) == 0:
+        camera_node.logger.debug("detected {:d} objects in image".format(len(detections)))
+    else:
+        camera_node.logger.info("detected {:d} objects in image".format(len(detections)))
 
     for detection in detections:
-        print(detection)
+        camera_node.logger.debug(detection)
         camera_node.send_center({
             "class_id": detection.ClassID,
             "center": detection.Center,

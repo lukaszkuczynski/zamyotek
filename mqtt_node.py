@@ -1,12 +1,14 @@
 import paho.mqtt.client as mqtt
 import json
 import serial
-
+import logging
+import os
 
 class MqttNode:
 
-    def __init__(self, nodename, topic_pub, topic_sub, hostname="localhost", port=1883) -> None:
+    def __init__(self, nodename, topic_pub, topic_sub, hostname="localhost", port=1883, log_folder="logs") -> None:
         self.nodename = nodename
+        self.logger = self.__setup_logger(log_folder)
         self.hostname = hostname
         self.port = port
         self.topic_pub = topic_pub
@@ -19,7 +21,7 @@ class MqttNode:
             self.client.loop_forever()
 
     def on_connect(self, client, userdata, flags, rc):
-        print("Connected with result code "+str(rc))
+        self.logger.info("Connected with result code "+str(rc))
 
         if self.topic_sub != "":
             if isinstance(self.topic_sub, list):
@@ -27,11 +29,10 @@ class MqttNode:
             else:
                 topics = self.topic_sub
             self.client.subscribe(topics)
-            print("subscribed to %s" % self.topic_sub)
-        print("connected")
+            self.logger.info("subscribed to %s" % self.topic_sub)
 
     def on_message(self, client, userdata, msg):
-        print(msg.topic+" "+str(msg.payload))
+        self.logger.debug(str(msg.payload))
 
     def send(self, message):
        self.send_to(message, self.topic_pub)
@@ -46,6 +47,24 @@ class MqttNode:
         message['sender'] = self.nodename
         self.client.publish(topic, json.dumps(message))
 
+    def __setup_logger(self, log_folder):
+        log_filename = os.path.join(log_folder, self.nodename+".log")
+        logger = logging.getLogger(self.nodename)
+        logger.setLevel(logging.DEBUG)
+        # create file handler which logs even debug messages
+        fh = logging.FileHandler(log_filename)
+        fh.setLevel(logging.DEBUG)
+        # create console handler with a higher log level
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        # create formatter and add it to the handlers
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        fh.setFormatter(formatter)
+        # add the handlers to logger
+        logger.addHandler(ch)
+        logger.addHandler(fh)
+        return logger
 
 
 class MqttToSerialNode(MqttNode):
@@ -69,7 +88,7 @@ class MqttToSerialNode(MqttNode):
 
     def on_message(self, client, userdata, msg):
         command = json.loads(msg.payload)
-        print(command)
+        self.logger.debug("Writing to serial command = %s", command)
         command_encoded = (command['msg']+"\n").encode("ascii")
         self.serial_port.write(command_encoded)
 
@@ -97,7 +116,7 @@ class SerialToMqttNode(MqttNode):
     def __start_listening(self):
         while True:
             line = self.serial_port.readline()
-            print(line)
+            self.logger.debug("Received on serial line = %s", line)
             line_dict = json.loads(line)
             self.send(line_dict)
 

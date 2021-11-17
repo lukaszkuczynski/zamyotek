@@ -1,3 +1,4 @@
+import logging
 from mqtt_node import MqttNode, MqttToSerialNode
 import json
 import math
@@ -25,7 +26,7 @@ class BrainNode(MqttNode):
             [center_left+1, center_right, "central"],
             [center_right+1, TOTAL_WID, "right"]
         ]
-        print(self.zones)
+        self.logger.debug("zones : %s ", self.zones)
         self.distance_stack = DistanceStack(ms_ttl=2000, max_val=1000)
         self.turning_time_noop = TURNING_TIME_NOOP
         self.last_turning_time = datetime.now()
@@ -34,10 +35,8 @@ class BrainNode(MqttNode):
 
 
     def on_message(self, client, userdata, msg):
-        #print(msg.topic+" - "+str(msg.payload))
         if msg.topic == TOPIC_CAMERA:
             center_msg = json.loads(msg.payload)
-            print(center_msg)
             center_x = center_msg['center'][0]
             width = center_msg['width']
             for zone in self.zones:
@@ -45,7 +44,7 @@ class BrainNode(MqttNode):
                     zone_name = zone[2]
                     if zone_name in ['left','right']:
                         if ((datetime.now() - self.last_turning_time).total_seconds() * 1000) < self.turning_time_noop:
-                            print("Skipped")
+                            self.logger.debug("Skipped turning, last turning time was just before..")
                             move_dir = 'stop'
                         else:
                             self.last_turning_time = datetime.now()
