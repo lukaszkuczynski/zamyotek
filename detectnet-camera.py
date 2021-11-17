@@ -28,7 +28,11 @@ import argparse
 import sys
 
 from mqtt_node import MqttNode
+from label_identifier import LabelIdentifier
 
+import os
+import shutil
+import yaml
 # parse the command line
 parser = argparse.ArgumentParser(description="Locate objects in a live camera stream using an object detection DNN.", 
                                  formatter_class=argparse.RawTextHelpFormatter, epilog=jetson.inference.detectNet.Usage() +
@@ -60,19 +64,34 @@ input = jetson.utils.videoSource(opt.input_URI, argv=sys.argv)
 import json
 
 class CameraNode(MqttNode):
-    def __init__(self, classes_to_check):
-        self.classes_to_check = classes_to_check
-        super().__init__("camera", "camera_out", "")
+
+    def __init__(self):
+        filename = "/usr/local/bin/networks/SSD-Mobilenet-v2/ssd_coco_labels.txt"
+        self.identifier = LabelIdentifier(filename)
+        super().__init__("center", "camera_out", "")
+        self.reload_settings()
 
     def send_center(self, center_boundaries):
+        if os.path.exists("camera_change_settings"):
+            os.remove("camera_change_settings")
+            self.reload_settings()
         if center_boundaries['class_id'] in self.classes_to_check:
             self.send(center_boundaries)
+
+    def reload_settings(self):
+        self.logger.info("Re-loading settings")
+        with open("config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
+            classes = config['camera']['classes']
+            label_ints = [self.identifier.number_for_label(class_text) for class_text in classes]
+            print(label_ints)
+            self.classes_to_check = label_ints 
 
 # class id to report
 # 1 - person, 37 - sportsball
 # 88 teddy bear
 # 64 plant
-camera_node = CameraNode(set([37]))
+camera_node = CameraNode()
 
 # process frames until the user exits
 while True:
@@ -105,7 +124,7 @@ while True:
     output.SetStatus("{:s} | Network {:.0f} FPS".format(opt.network, net.GetNetworkFPS()))
 
     # print out performance info
-    net.PrintProfilerTimes()
+    #net.PrintProfilerTimes()
 
     # exit on input/output EOS
     if not input.IsStreaming() or not output.IsStreaming():
