@@ -68,7 +68,7 @@ class CameraNode(MqttNode):
     def __init__(self):
         filename = "/usr/local/bin/networks/SSD-Mobilenet-v2/ssd_coco_labels.txt"
         self.identifier = LabelIdentifier(filename)
-        super().__init__("center", "camera_out", "")
+        super().__init__("camera", "camera_out", "")
         self.reload_settings()
 
     def send_center(self, center_boundaries):
@@ -76,14 +76,20 @@ class CameraNode(MqttNode):
             os.remove("camera_change_settings")
             self.reload_settings()
         if center_boundaries['class_id'] in self.classes_to_check:
+            center_boundaries['class_label'] = self.identifier.label_for_number(int(center_boundaries['class_id'])) 
             self.send(center_boundaries)
 
     def reload_settings(self):
         self.logger.info("Re-loading settings")
         with open("config.yaml", "r") as stream:
             config = yaml.safe_load(stream)
-            classes = config['camera']['classes']
+            search_classes = config['camera']['classes_search']
+            return_classes = config['camera']['classes_return']
+            classes = search_classes
+            classes.extend(return_classes)
+            self.logger.info("Camera will search for following labels = %s" % classes)
             label_ints = [self.identifier.number_for_label(class_text) for class_text in classes]
+            self.logger.info("It reflect the following class IDs = %s" % label_ints)
             print(label_ints)
             self.classes_to_check = label_ints 
 

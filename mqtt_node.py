@@ -17,9 +17,13 @@ class MqttNode:
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.connect(hostname, port, 60)
+        self.reload_settings()    
         if topic_sub != "":
             self.client.loop_forever()
-
+    
+    def reload_settings(self):
+        pass
+            
     def on_connect(self, client, userdata, flags, rc):
         self.logger.info("Connected with result code "+str(rc))
 

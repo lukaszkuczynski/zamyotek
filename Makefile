@@ -37,3 +37,7 @@ sensor:
 	#echo $$PPID > sensor.pid
 	python3 ./sensor_node.py --port $(ESP32_PORT_SENSORS) 
 #	{ python3 ./sensor_node.py --port $(ESP32_PORT_SENSORS) & echo $$! > sensor.pid; }
+
+
+rsync:
+	rsync -av /home/luk/othprj/zamyotek/ jetson:/home/lukjestson/prj/zamyotek/ --exclude site-packages --exclude venv --exclude .git --exclude __pycache__ --exclude .vscode --exclude logs

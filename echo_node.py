@@ -8,7 +8,7 @@ class EchoNode(MqttNode):
 
 
     def on_message(self, client, userdata, msg):
-        self.logger.info("onmessage")
+        self.logger.info("on message")
         return super().on_message(client, userdata, msg)
 
 
