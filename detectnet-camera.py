@@ -78,6 +78,9 @@ class CameraNode(MqttNode):
         if center_boundaries['class_id'] in self.classes_to_check:
             center_boundaries['class_label'] = self.identifier.label_for_number(int(center_boundaries['class_id'])) 
             self.send(center_boundaries)
+        else:
+            self.logger.debug("Other objects detected, class %s", self.identifier.label_for_number(int(center_boundaries['class_id'])))
+
 
     def reload_settings(self):
         self.logger.info("Re-loading settings")

@@ -1,4 +1,4 @@
 camera:
-    #classes: ["teddy bear"]
-    classes_search: ["sports ball"]
+    classes_search: ["teddy bear"]
+    #classes_search: ["sports ball"]
     classes_return: ["person"]

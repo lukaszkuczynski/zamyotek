@@ -8,7 +8,7 @@ import yaml
 
 SIDE_AREA_PROPORTION = .3335
 TOTAL_WID = 1280
-CLOSE_GATE_DISTANCE = 30
+CLOSE_GATE_DISTANCE = 10
 
 TOPIC_SENSOR_DISTANCE = "/sensor/distance"
 TOPIC_CAMERA = "camera_out"
@@ -17,6 +17,7 @@ TOPIC_SERVO = "/cmd/servo_gate"
 TOPIC_MODE_CHANGER = "/cmd/brain_mode"
 TURNING_TIME_NOOP = 1000
 TOO_CLOSE_OBJECT_WIDTH = 800
+AHEAD_COMMAND = "ahead,80"
 
 class BrainNode(MqttNode):
 
@@ -30,7 +31,7 @@ class BrainNode(MqttNode):
             [center_left+1, center_right, "central"],
             [center_right+1, TOTAL_WID, "right"]
         ]
-        self.distance_stack = DistanceStack(ms_ttl=2000, max_val=1000)
+        self.distance_stack = DistanceStack(ms_ttl=500, max_val=1000)
         self.turning_time_noop = TURNING_TIME_NOOP
         self.last_turning_time = datetime.now()
         self.motor_stack = AnyObjectStack(ms_ttl = 2000)
@@ -75,7 +76,7 @@ class BrainNode(MqttNode):
                     else:
                         # center, we have to decide on the basis of distance
                         # default decision is to go ahead
-                        move_dir = 'ahead'
+                        move_dir = AHEAD_COMMAND
                         distance = self.distance_stack.avg_distance()
                         if distance is not None:
                             # when distance is small then we should stop
@@ -89,7 +90,7 @@ class BrainNode(MqttNode):
                         if self.move_mode == 'searching':
                             if move_dir == 'stop':
                                 self.send_to('close_gate', TOPIC_SERVO)
-                            elif move_dir == 'ahead':
+                            elif move_dir == AHEAD_COMMAND:
                                 self.send_to('open_gate', TOPIC_SERVO)
                         else:
                             self.send_to('close_gate', TOPIC_SERVO)
@@ -102,7 +103,10 @@ class BrainNode(MqttNode):
             distance_val = float(distance_msg['distance'])
             self.distance_stack.push(distance_val)
             if not self.motor_stack.most_common():
-                self.send('stop')
+                move_dir = 'stop'
+                self.send(move_dir)
+                self.last_move_dir = move_dir
+                self.send_to('close_gate', TOPIC_SERVO)
 
 
 brain = BrainNode()

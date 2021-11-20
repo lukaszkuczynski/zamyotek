@@ -7,8 +7,12 @@ servo_node_pid := $(shell ps -aux | grep servo_mqtt_node.py | grep -v grep | cut
 down:
 	kill -2 $(sensor_node_pid) $(camera_node_pid) $(brain_node_pid) $(motor_node_pid) $(servo_node_pid)
 
+nobrainup: 
+	make -j 4 motor servos sensor camera
+	
 up: 
 	make -j 5 brain motor servos sensor camera
+
 build:
 	pip install -r requirements.txt
 
