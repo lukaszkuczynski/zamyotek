@@ -7,7 +7,7 @@ const Subscriber = ({ sub, unSub, showUnsub }) => {
   const qosOptions = useContext(QosOption);
 
   const record = {
-    topic: 'testtopic/react',
+    topic: '/sensor/distance',
     qos: 0,
   };
 

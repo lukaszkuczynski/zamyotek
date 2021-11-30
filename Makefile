@@ -45,3 +45,6 @@ sensor:
 
 rsync:
 	rsync -av /home/luk/othprj/zamyotek/ jetson:/home/lukjestson/prj/zamyotek/ --exclude site-packages --exclude venv --exclude .git --exclude __pycache__ --exclude .vscode --exclude logs
+
+reactapp:
+	cd react-mqtt-test && HOST=0.0.0.0 PORT=3000 ./node_modules/.bin/react-scripts start
