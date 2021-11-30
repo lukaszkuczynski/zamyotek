@@ -6,7 +6,7 @@ const Connection = ({ connect, disconnect, connectBtn }) => {
   const record = {
     host: '192.168.100.10',
     clientId: `mqttjs_ + ${Math.random().toString(16).substr(2, 8)}`,
-    port: 8080,
+    port: 8083,
   };
   const onFinish = (values) => {
     const { host, clientId, port, username, password } = values;
