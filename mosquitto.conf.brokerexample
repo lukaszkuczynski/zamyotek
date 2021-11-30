@@ -1,0 +1,5 @@
+connection bridge-main
+address 192.168.100.10
+
+topic # out 0
+topic # in 0

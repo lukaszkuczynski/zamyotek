@@ -17,7 +17,8 @@ TOPIC_SERVO = "/cmd/servo_gate"
 TOPIC_MODE_CHANGER = "/cmd/brain_mode"
 TURNING_TIME_NOOP = 1000
 TOO_CLOSE_OBJECT_WIDTH = 800
-AHEAD_COMMAND = "ahead,80"
+# AHEAD_COMMAND = "ahead,80"
+DEFAULT_AHEAD_SPEED = 80
 
 class BrainNode(MqttNode):
 
@@ -35,6 +36,7 @@ class BrainNode(MqttNode):
         self.turning_time_noop = TURNING_TIME_NOOP
         self.last_turning_time = datetime.now()
         self.motor_stack = AnyObjectStack(ms_ttl = 2000)
+        self.speed = DEFAULT_AHEAD_SPEED
         super().__init__("brain", TOPIC_MOTOR, [TOPIC_CAMERA, TOPIC_SENSOR_DISTANCE, TOPIC_MODE_CHANGER])
 
     def reload_settings(self):
@@ -76,12 +78,18 @@ class BrainNode(MqttNode):
                     else:
                         # center, we have to decide on the basis of distance
                         # default decision is to go ahead
-                        move_dir = AHEAD_COMMAND
+                        move_dir = f"ahead,{self.speed}"
                         distance = self.distance_stack.avg_distance()
                         if distance is not None:
                             # when distance is small then we should stop
                             if distance < CLOSE_GATE_DISTANCE:
                                 move_dir = 'stop'
+                            elif distance < CLOSE_GATE_DISTANCE + 20:
+                                self.speed = DEFAULT_AHEAD_SPEED - 20
+                            elif distance < CLOSE_GATE_DISTANCE + 40:
+                                self.speed = DEFAULT_AHEAD_SPEED - 10
+                            else:
+                                self.speed = DEFAULT_AHEAD_SPEED
                         # if width > TOO_CLOSE_OBJECT_WIDTH:
                         #     move_dir = 'stop'
                     self.motor_stack.push(move_dir)
@@ -90,7 +98,7 @@ class BrainNode(MqttNode):
                         if self.move_mode == 'searching':
                             if move_dir == 'stop':
                                 self.send_to('close_gate', TOPIC_SERVO)
-                            elif move_dir == AHEAD_COMMAND:
+                            elif "ahead" in move_dir:
                                 self.send_to('open_gate', TOPIC_SERVO)
                         else:
                             self.send_to('close_gate', TOPIC_SERVO)
