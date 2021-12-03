@@ -21,6 +21,7 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+from aws_listener_node import CONFIG_PATH
 import jetson.inference
 import jetson.utils
 
@@ -45,6 +46,9 @@ parser.add_argument("--overlay", type=str, default="box,labels,conf", help="dete
 parser.add_argument("--threshold", type=float, default=0.5, help="minimum detection threshold to use") 
 
 is_headless = ["--headless"] if sys.argv[0].find('console.py') != -1 else [""]
+
+CAMERA_RELOAD_FILE = "camera_change_settings"
+CONFIG_PATH = "config.yaml"
 
 try:
     opt = parser.parse_known_args()[0]
@@ -72,8 +76,8 @@ class CameraNode(MqttNode):
         self.reload_settings()
 
     def send_center(self, center_boundaries):
-        if os.path.exists("camera_change_settings"):
-            os.remove("camera_change_settings")
+        if os.path.exists(CAMERA_RELOAD_FILE):
+            os.remove(CAMERA_RELOAD_FILE)
             self.reload_settings()
         if center_boundaries['class_id'] in self.classes_to_check:
             center_boundaries['class_label'] = self.identifier.label_for_number(int(center_boundaries['class_id'])) 
@@ -84,7 +88,7 @@ class CameraNode(MqttNode):
 
     def reload_settings(self):
         self.logger.info("Re-loading settings")
-        with open("config.yaml", "r") as stream:
+        with open(CONFIG_PATH, "r") as stream:
             config = yaml.safe_load(stream)
             search_classes = config['camera']['classes_search']
             return_classes = config['camera']['classes_return']
