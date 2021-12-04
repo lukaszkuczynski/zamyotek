@@ -22,6 +22,9 @@ class LabelIdentifier:
             raise Exception(f"Label {text} not in labels")
         return int(self.labels_inv[text])
 
+    def all_labels(self):
+        return set(self.labels.values())
+
 
 if __name__ == '__main__':
     filename = "/usr/local/bin/networks/SSD-Mobilenet-v2/ssd_coco_labels.txt"

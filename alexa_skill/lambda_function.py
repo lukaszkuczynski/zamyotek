@@ -156,19 +156,20 @@ class BringMeIntentHandler(AbstractRequestHandler):
 
     def handle(self, handler_input):
         # type: (HandlerInput) -> Response
-        print(handler_input.request_envelope.request)
         object_class = get_slot_value(
             handler_input=handler_input, slot_name="object_class")
  
-        speak_output = "Bring me will be executed. yay. For " + object_class
+        speak_output = "Bring me for " + object_class
 
         iot_endpoint_url = os.getenv('IOT_ENDPOINT_URL')
         client = boto3.client('iot-data', region_name='eu-central-1', endpoint_url=iot_endpoint_url)
         response = client.publish(
                 topic='/zamyotek/cmd/bring_me',
-                qos=0,
+                # topic='zamyotekcmdbring_me',
+                qos=1,
                 payload=json.dumps({"bring_me_class":object_class})
             ) 
+        print(response)
         return (
             handler_input.response_builder
                 .speak(speak_output)

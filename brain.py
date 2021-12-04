@@ -15,6 +15,7 @@ TOPIC_CAMERA = "camera_out"
 TOPIC_MOTOR = "/cmd/motor_move"
 TOPIC_SERVO = "/cmd/servo_gate"
 TOPIC_MODE_CHANGER = "/cmd/brain_mode"
+TOPIC_RELOAD_SETTINGS = "/cmd/reload_settings"
 TURNING_TIME_NOOP = 1000
 TOO_CLOSE_OBJECT_WIDTH = 800
 # AHEAD_COMMAND = "ahead,80"
@@ -37,7 +38,7 @@ class BrainNode(MqttNode):
         self.last_turning_time = datetime.now()
         self.motor_stack = AnyObjectStack(ms_ttl = 2000)
         self.speed = DEFAULT_AHEAD_SPEED
-        super().__init__("brain", TOPIC_MOTOR, [TOPIC_CAMERA, TOPIC_SENSOR_DISTANCE, TOPIC_MODE_CHANGER])
+        super().__init__("brain", TOPIC_MOTOR, [TOPIC_CAMERA, TOPIC_SENSOR_DISTANCE, TOPIC_MODE_CHANGER, TOPIC_RELOAD_SETTINGS])
 
     def reload_settings(self):
         self.logger.info("Re-loading settings")
@@ -54,7 +55,7 @@ class BrainNode(MqttNode):
                 self.move_mode = "searching"
             elif mode_msg["mode"] == "return":
                 self.move_mode = "return"
-        if msg.topic == TOPIC_CAMERA:
+        elif msg.topic == TOPIC_CAMERA:
             classes_to_follow = []
             if self.move_mode == "searching":
                 classes_to_follow = self.search_classes
@@ -115,6 +116,8 @@ class BrainNode(MqttNode):
                 self.send(move_dir)
                 self.last_move_dir = move_dir
                 self.send_to('close_gate', TOPIC_SERVO)
+        elif msg.topic == TOPIC_RELOAD_SETTINGS:
+            self.reload_settings()
 
 
 brain = BrainNode()
