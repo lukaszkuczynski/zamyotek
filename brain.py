@@ -8,7 +8,7 @@ import yaml
 
 SIDE_AREA_PROPORTION = .3335
 TOTAL_WID = 1280
-CLOSE_GATE_DISTANCE = 10
+CLOSE_GATE_DISTANCE = 5
 
 TOPIC_SENSOR_DISTANCE = "/sensor/distance"
 TOPIC_CAMERA = "camera_out"
@@ -19,7 +19,7 @@ TOPIC_RELOAD_SETTINGS = "/cmd/reload_settings"
 TURNING_TIME_NOOP = 1000
 TOO_CLOSE_OBJECT_WIDTH = 800
 # AHEAD_COMMAND = "ahead,80"
-DEFAULT_AHEAD_SPEED = 80
+DEFAULT_AHEAD_SPEED = 70
 
 class BrainNode(MqttNode):
 
@@ -55,69 +55,78 @@ class BrainNode(MqttNode):
                 self.move_mode = "searching"
             elif mode_msg["mode"] == "return":
                 self.move_mode = "return"
-        elif msg.topic == TOPIC_CAMERA:
-            classes_to_follow = []
-            if self.move_mode == "searching":
-                classes_to_follow = self.search_classes
-            elif self.move_mode == "return":
-                classes_to_follow = self.return_classes
-            center_msg = json.loads(msg.payload)
-            if not center_msg['class_label'] in classes_to_follow:
-                return
-            center_x = center_msg['center'][0]
-            width = center_msg['width']
-            for zone in self.zones:
-                if center_x >= zone[0] and center_x < zone[1]:
-                    zone_name = zone[2]
-                    if zone_name in ['left','right']:
-                        if ((datetime.now() - self.last_turning_time).total_seconds() * 1000) < self.turning_time_noop:
-                            self.logger.debug("Skipped turning, last turning time was just before..")
-                            move_dir = 'stop'
-                        else:
-                            self.last_turning_time = datetime.now()
-                            move_dir = zone_name
-                    else:
-                        # center, we have to decide on the basis of distance
-                        # default decision is to go ahead
-                        move_dir = f"ahead,{self.speed}"
-                        distance = self.distance_stack.avg_distance()
-                        if distance is not None:
-                            # when distance is small then we should stop
-                            if distance < CLOSE_GATE_DISTANCE:
+        if self.move_mode == 'collected':
+            self.send('stop')
+        else:
+            # self.move_mode in ["searching", "return"]:
+            if msg.topic == TOPIC_RELOAD_SETTINGS:
+                self.reload_settings()
+            elif msg.topic == TOPIC_CAMERA:
+                classes_to_follow = []
+                if self.move_mode == "searching":
+                    classes_to_follow = self.search_classes
+                elif self.move_mode == "return":
+                    classes_to_follow = self.return_classes
+                center_msg = json.loads(msg.payload)
+                if not center_msg['class_label'] in classes_to_follow:
+                    return
+                center_x = center_msg['center'][0]
+                width = center_msg['width']
+                for zone in self.zones:
+                    if center_x >= zone[0] and center_x < zone[1]:
+                        zone_name = zone[2]
+                        if zone_name in ['left','right']:
+                            if ((datetime.now() - self.last_turning_time).total_seconds() * 1000) < self.turning_time_noop:
+                                self.logger.debug("Skipped turning, last turning time was just before..")
                                 move_dir = 'stop'
-                            elif distance < CLOSE_GATE_DISTANCE + 20:
-                                self.speed = DEFAULT_AHEAD_SPEED - 20
-                            elif distance < CLOSE_GATE_DISTANCE + 40:
-                                self.speed = DEFAULT_AHEAD_SPEED - 10
                             else:
-                                self.speed = DEFAULT_AHEAD_SPEED
-                        # if width > TOO_CLOSE_OBJECT_WIDTH:
-                        #     move_dir = 'stop'
-                    self.motor_stack.push(move_dir)
-                    self.send(move_dir)
-                    if move_dir != self.last_move_dir:
-                        if self.move_mode == 'searching':
-                            if move_dir == 'stop':
-                                self.send_to('close_gate', TOPIC_SERVO)
-                            elif "ahead" in move_dir:
-                                self.send_to('open_gate', TOPIC_SERVO)
+                                self.last_turning_time = datetime.now()
+                                move_dir = zone_name
                         else:
-                            self.send_to('close_gate', TOPIC_SERVO)
-                    self.last_move_dir = move_dir
+                            # center, we have to decide on the basis of distance
+                            # default decision is to go ahead
+                            move_dir = f"ahead,{self.speed}"
+                            distance = self.distance_stack.avg_distance()
+                            if distance is not None:
+                                # when distance is small then we should stop
+                                if distance < CLOSE_GATE_DISTANCE:
+                                    move_dir = 'stop'
+                                    self.mode = 'collected'
+                                elif distance < CLOSE_GATE_DISTANCE + 10:
+                                    self.speed = DEFAULT_AHEAD_SPEED - 30
+                                elif distance < CLOSE_GATE_DISTANCE + 20:
+                                    self.speed = DEFAULT_AHEAD_SPEED - 20
+                                elif distance < CLOSE_GATE_DISTANCE + 30:
+                                    self.speed = DEFAULT_AHEAD_SPEED - 15
+                                elif distance < CLOSE_GATE_DISTANCE + 50:
+                                    self.speed = DEFAULT_AHEAD_SPEED - 10
+                                else:
+                                    self.speed = DEFAULT_AHEAD_SPEED
+                            # if width > TOO_CLOSE_OBJECT_WIDTH:
+                            #     move_dir = 'stop'
+                        self.motor_stack.push(move_dir)
+                        self.send(move_dir)
+                        if move_dir != self.last_move_dir:
+                            if self.move_mode == 'searching':
+                                if move_dir == 'stop':
+                                    self.send_to('close_gate', TOPIC_SERVO)
+                                elif "ahead" in move_dir:
+                                    self.send_to('open_gate', TOPIC_SERVO)
+                            else:
+                                self.send_to('close_gate', TOPIC_SERVO)
+                        self.last_move_dir = move_dir
 
-            print(f"avg distance from stack is {self.distance_stack.avg_distance()}")
-            print(f"object closeness width perc is {width / TOO_CLOSE_OBJECT_WIDTH}")
-        elif msg.topic == TOPIC_SENSOR_DISTANCE:
-            distance_msg = json.loads(msg.payload)
-            distance_val = float(distance_msg['distance'])
-            self.distance_stack.push(distance_val)
-            if not self.motor_stack.most_common():
-                move_dir = 'stop'
-                self.send(move_dir)
-                self.last_move_dir = move_dir
-                self.send_to('close_gate', TOPIC_SERVO)
-        elif msg.topic == TOPIC_RELOAD_SETTINGS:
-            self.reload_settings()
+                self.logger.debug(f"avg distance from stack is {self.distance_stack.avg_distance()}")
+                self.logger.debug(f"object closeness width perc is {width / TOO_CLOSE_OBJECT_WIDTH}")
+            elif msg.topic == TOPIC_SENSOR_DISTANCE:
+                distance_msg = json.loads(msg.payload)
+                distance_val = float(distance_msg['distance'])
+                self.distance_stack.push(distance_val)
+                if not self.motor_stack.most_common():
+                    move_dir = 'stop'
+                    self.send(move_dir)
+                    self.last_move_dir = move_dir
+                    self.send_to('close_gate', TOPIC_SERVO)
 
 
 brain = BrainNode()

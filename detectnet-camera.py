@@ -34,6 +34,8 @@ from label_identifier import LabelIdentifier
 import os
 import shutil
 import yaml
+
+from datetime import datetime
 # parse the command line
 parser = argparse.ArgumentParser(description="Locate objects in a live camera stream using an object detection DNN.", 
                                  formatter_class=argparse.RawTextHelpFormatter, epilog=jetson.inference.detectNet.Usage() +
@@ -44,10 +46,12 @@ parser.add_argument("output_URI", type=str, default="", nargs='?', help="URI of 
 parser.add_argument("--network", type=str, default="ssd-mobilenet-v2", help="pre-trained model to load (see below for options)")
 parser.add_argument("--overlay", type=str, default="box,labels,conf", help="detection overlay flags (e.g. --overlay=box,labels,conf)\nvalid combinations are:  'box', 'labels', 'conf', 'none'")
 parser.add_argument("--threshold", type=float, default=0.5, help="minimum detection threshold to use") 
+parser.add_argument("--saved_pictures_folder", help="Folder to save taken pictures")
 
 is_headless = ["--headless"] if sys.argv[0].find('console.py') != -1 else [""]
 
 CAMERA_RELOAD_FILE = "camera_change_settings"
+CAMERA_TAKE_PICTURE_FILE = "camera_take_picture"
 CONFIG_PATH = "config.yaml"
 
 try:
@@ -69,11 +73,24 @@ import json
 
 class CameraNode(MqttNode):
 
-    def __init__(self):
+    def __init__(self, args):
         filename = "/usr/local/bin/networks/SSD-Mobilenet-v2/ssd_coco_labels.txt"
         self.identifier = LabelIdentifier(filename)
         super().__init__("camera", "camera_out", "")
+        self.pics_folder = args.saved_pictures_folder
         self.reload_settings()
+
+    def on_new_picture(self, img):
+        if os.path.exists(CAMERA_TAKE_PICTURE_FILE):
+            os.remove(CAMERA_TAKE_PICTURE_FILE)
+            now = datetime.now() # current date and time
+            date_time = now.strftime("%Y_%m_%d_%H_%M_%S")
+            filename_pic = f"{date_time}.jpg"
+            full_pic_path = os.path.join(self.pics_folder, filename_pic)
+            jetson.utils.saveImage(full_pic_path, img)
+            photo_msg = full_pic_path
+            self.logger.debug("sending")
+            self.send_to(photo_msg, "/notify/photo")
 
     def send_center(self, center_boundaries):
         if os.path.exists(CAMERA_RELOAD_FILE):
@@ -104,7 +121,7 @@ class CameraNode(MqttNode):
 # 1 - person, 37 - sportsball
 # 88 teddy bear
 # 64 plant
-camera_node = CameraNode()
+camera_node = CameraNode(opt)
 
 # process frames until the user exits
 while True:
@@ -119,7 +136,7 @@ while True:
         camera_node.logger.debug("detected {:d} objects in image".format(len(detections)))
     else:
         camera_node.logger.info("detected {:d} objects in image".format(len(detections)))
-
+    camera_node.on_new_picture(img)
     for detection in detections:
         camera_node.logger.debug(detection)
         camera_node.send_center({

@@ -31,6 +31,8 @@ class AwsListenerNode(MqttNode):
                 config = yaml.safe_load(stream)
                 payload_json = json.loads(msg.payload)
                 new_class = payload_json["bring_me_class"]
+                if not new_class:
+                    return 1
                 if new_class not in self.identifier.all_labels():
                     self.logger.warn(f"Received {new_class} which is not a known label. Class change aborted!")
                     return 1
