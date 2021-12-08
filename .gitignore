@@ -2,3 +2,4 @@ venv
 .vscode
 __pycache__
 camera_change_settings
+*.mp3
