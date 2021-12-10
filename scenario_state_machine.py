@@ -5,6 +5,7 @@ from typing import overload
 from time import sleep
 import logging
 import os
+import paho.mqtt.client as mqtt
 
 
 def setup_logger(name, log_folder="logs"):
@@ -46,7 +47,7 @@ step_factory = StepFactory()
 
 class ScenarioStateMachine():
 
-    def __init__(self, name, steps):
+    def __init__(self, name, steps, mqtt_conn):
         self.logger = setup_logger(name)
         if len(steps) < 1:
             raise Exception("Cannot initiate state machine with 0 steps")
@@ -88,7 +89,9 @@ class ScenarioStateMachine():
 
 
 class Step():
-    def __init__(self, cfg) -> None:
+    def __init__(self, cfg, logger) -> None:
+        self.name = cfg['name']
+        self.logger = logger
         if not 'timeout' in cfg:
             self.timeout = 0
         else:
@@ -111,9 +114,7 @@ class Step():
 class SleepStep(Step):
 
     def __init__(self, cfg, logger):
-        super().__init__(cfg)
-        self.logger = logger
-        self.name = cfg['name']
+        super().__init__(cfg, logger)
         self.waiting_time = cfg['waiting_time']
 
     def execute(self):
@@ -121,3 +122,13 @@ class SleepStep(Step):
         self.logger.info("Executing sleep for %s seconds.", self.waiting_time)
         sleep(self.waiting_time)
         return True
+
+
+class SendMqttStep(Step):
+
+    def __init__(self, cfg, logger) -> None:
+        super().__init__(cfg, logger)
+        self.client = mqtt.Client()
+        hostname = cfg['hostname'] | "locahost"
+        port = cfg['port'] | 1883
+        self.client.connect(hostname, port, 60)

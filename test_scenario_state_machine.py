@@ -3,6 +3,7 @@ import unittest
 from unittest import main, TestCase
 from scenario_state_machine import ScenarioStateMachine
 from time import sleep
+import paho.mqtt.client as mqtt
 
 
 class ScenarioStateMachineTestCase(TestCase):
