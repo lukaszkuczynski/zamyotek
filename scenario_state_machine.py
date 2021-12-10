@@ -5,7 +5,7 @@ from typing import overload
 from time import sleep
 import logging
 import os
-import paho.mqtt.client as mqtt
+from mqtt_node import MqttNode
 
 
 def setup_logger(name, log_folder="logs"):
@@ -20,7 +20,8 @@ def setup_logger(name, log_folder="logs"):
     ch.setLevel(logging.INFO)
     # create formatter and add it to the handlers
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     ch.setFormatter(formatter)
     fh.setFormatter(formatter)
     # add the handlers to logger
@@ -37,24 +38,27 @@ class ScenarioResult(Enum):
 
 
 class StepFactory:
-    def step_from_config(self, cfg, logger):
-        if cfg['type'].lower() == 'sleep':
+    def step_from_config(self, cfg, logger, mqtt_node):
+        if cfg["type"].lower() == "sleep":
             return SleepStep(cfg, logger)
+        if cfg["type"].lower() == "send_mqtt":
+            return MqttSendStep(cfg, logger, mqtt_node)
 
 
 step_factory = StepFactory()
 
 
-class ScenarioStateMachine():
-
-    def __init__(self, name, steps, mqtt_conn):
+class ScenarioStateMachine:
+    def __init__(self, name, steps, mqtt_node=None):
         self.logger = setup_logger(name)
         if len(steps) < 1:
             raise Exception("Cannot initiate state machine with 0 steps")
-        self.logger.info(
-            "Creating scenario '%s' with %d steps", name, len(steps))
-        self.steps = [step_factory.step_from_config(
-            step, self.logger) for step in steps if isinstance(step, dict)]
+        self.logger.info("Creating scenario '%s' with %d steps", name, len(steps))
+        self.steps = [
+            step_factory.step_from_config(step, self.logger, mqtt_node)
+            for step in steps
+            if isinstance(step, dict)
+        ]
         self.current_step_no = 0
         self.active = True
 
@@ -88,14 +92,14 @@ class ScenarioStateMachine():
             return None
 
 
-class Step():
+class Step:
     def __init__(self, cfg, logger) -> None:
-        self.name = cfg['name']
+        self.name = cfg["name"]
         self.logger = logger
-        if not 'timeout' in cfg:
+        if not "timeout" in cfg:
             self.timeout = 0
         else:
-            self.timeout = cfg['timeout']
+            self.timeout = cfg["timeout"]
             self.started = datetime.now()
 
     def is_waiting_for(self, msg):
@@ -112,10 +116,9 @@ class Step():
 
 
 class SleepStep(Step):
-
     def __init__(self, cfg, logger):
         super().__init__(cfg, logger)
-        self.waiting_time = cfg['waiting_time']
+        self.waiting_time = cfg["waiting_time"]
 
     def execute(self):
         self.logger.debug("Step name %s", self.name)
@@ -124,11 +127,13 @@ class SleepStep(Step):
         return True
 
 
-class SendMqttStep(Step):
-
-    def __init__(self, cfg, logger) -> None:
+class MqttSendStep(Step):
+    def __init__(self, cfg, logger, mqtt_node) -> None:
         super().__init__(cfg, logger)
-        self.client = mqtt.Client()
-        hostname = cfg['hostname'] | "locahost"
-        port = cfg['port'] | 1883
-        self.client.connect(hostname, port, 60)
+        self.topic_to = cfg["topic"]
+        self.msg = cfg["msg"]
+        self.mqtt_node = mqtt_node
+
+    def execute(self):
+        self.mqtt_node.send_to(topic=self.topic_to, message=self.msg)
+        return True
