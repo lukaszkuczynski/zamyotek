@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from datetime import datetime
 from enum import Enum
 import time
@@ -41,8 +42,10 @@ class StepFactory:
     def step_from_config(self, cfg, logger, mqtt_node):
         if cfg["type"].lower() == "sleep":
             return SleepStep(cfg, logger)
-        if cfg["type"].lower() == "send_mqtt":
+        elif cfg["type"].lower() == "send_mqtt":
             return MqttSendStep(cfg, logger, mqtt_node)
+        elif cfg["type"].lower() == "receive_msg":
+            return ReceiveMsgStep(cfg, logger)
 
 
 step_factory = StepFactory()
@@ -59,19 +62,20 @@ class ScenarioStateMachine:
             for step in steps
             if isinstance(step, dict)
         ]
-        self.current_step_no = 0
+        self.current_step_no = -1
         self.active = True
 
     def start(self):
         self.__execute_next_step()
 
     def __execute_next_step(self):
+        self.current_step_no += 1
         step = self.__current_step()
         if step is None:
-            self.active = False
+            self.finish_scenario()
+            # self.current_step_no -= 1
             return ScenarioResult.FINISHED
         step_is_not_async = step.execute()
-        self.current_step_no += 1
         if step_is_not_async:
             self.__execute_next_step()
 
@@ -88,8 +92,16 @@ class ScenarioStateMachine:
             return ScenarioResult.NEXT_STEP
         else:
             if self.__current_step().is_timeout():
+                self.finish_scenario()
                 return ScenarioResult.TIMEOUT
             return None
+
+    def interrupted(self):
+        self.logger.info("checking interrupt %d", self.current_step_no)
+        return not self.active and (self.current_step_no < len(self.steps))
+
+    def finish_scenario(self):
+        self.active = False
 
 
 class Step:
@@ -107,7 +119,7 @@ class Step:
 
     def is_timeout(self):
         now = datetime.now()
-        if (now - self.started).total_seconds() * 1000 > self.timeout:
+        if (now - self.started).total_seconds() > self.timeout:
             return True
         return False
 
@@ -137,3 +149,20 @@ class MqttSendStep(Step):
     def execute(self):
         self.mqtt_node.send_to(topic=self.topic_to, message=self.msg)
         return True
+
+
+class ReceiveMsgStep(Step):
+    def __init__(self, cfg, logger) -> None:
+        super().__init__(cfg, logger)
+        if not "timeout" in cfg:
+            raise Exception("This Step requires 'timeout' configuration key")
+        self.topic_listen = cfg["topic"]
+
+    def execute(self):
+        return False
+
+    def is_waiting_for(self, msg):
+        topic = msg["topic"]
+        if topic == self.topic_listen:
+            return True
+        return False
