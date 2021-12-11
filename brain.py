@@ -21,7 +21,8 @@ TOPIC_MODE_CHANGER = "/cmd/brain_mode"
 TOPIC_RELOAD_SETTINGS = "/cmd/reload_settings"
 TOPIC_CMD_SERVO_HEAD = "/cmd/servo/head_position"
 TOPIC_TAKE_PHOTO = "/cmd/take_photo"
-TOPIC_NOTIFY_PHOTO_TAKEN = "/notify/photo"
+TOPIC_NOTIFY_OBJECT_RECOGNIZED = "/notify/object_recognized"
+
 TURNING_TIME_NOOP = 1000
 TOO_CLOSE_OBJECT_WIDTH = 800
 # AHEAD_COMMAND = "ahead,80"
@@ -64,9 +65,9 @@ class BrainNode(MqttNode):
                 "msg": "takeit",
             },
             {
-                "name": "receive_photo",
+                "name": "recognize_photo",
                 "type": "receive_msg",
-                "topic": TOPIC_NOTIFY_PHOTO_TAKEN,
+                "topic": TOPIC_NOTIFY_OBJECT_RECOGNIZED,
                 "timeout": 10,
             },
         ]
@@ -80,6 +81,7 @@ class BrainNode(MqttNode):
                 TOPIC_SENSOR_DISTANCE,
                 TOPIC_MODE_CHANGER,
                 TOPIC_RELOAD_SETTINGS,
+                TOPIC_NOTIFY_OBJECT_RECOGNIZED,
             ],
             autostart_listening=False,
         )
@@ -114,8 +116,9 @@ class BrainNode(MqttNode):
         elif self.brain_mode == BrainMode.TELLME:
             mode_msg = json.loads(msg.payload)
             process_result = self.tell_me_scenario.process_message(mode_msg)
+            self.logger.debug("Process result %s", process_result)
             if process_result == ScenarioResult.FINISHED:
-                self.logger.info("Scenario in brain finished")
+                self.logger.info("Scenario in brain finished!!!")
                 self.change_mode(BrainMode.IDLE)
             elif process_result == ScenarioResult.TIMEOUT:
                 self.logger.warn("Timeout. Tellme scenario failed :(")

@@ -32,6 +32,7 @@ class MqttNode:
 
     def start_listening(self):
         if self.topic_sub != "":
+            self.logger.info("Listen forever in loop...")
             self.client.loop_forever()
 
     def reload_settings(self):
@@ -39,7 +40,6 @@ class MqttNode:
 
     def on_connect(self, client, userdata, flags, rc):
         self.logger.info("Connected with result code " + str(rc))
-
         if self.topic_sub != "":
             if isinstance(self.topic_sub, list):
                 topics = [(name, 1) for name in self.topic_sub]
@@ -59,10 +59,12 @@ class MqttNode:
             text_message = message
             message = {}
             message["msg"] = text_message
+            message["topic"] = topic
         elif not isinstance(message, dict):
             raise Exception("Message should be dict or str but is %s!" % type(message))
         message["sender"] = self.nodename
-        self.client.publish(topic, json.dumps(message))
+        self.logger.info("Publish..... %s", message)
+        self.client.publish(topic, json.dumps(message), qos=1)
 
     def __setup_logger(self, log_folder):
         log_filename = os.path.join(log_folder, self.nodename + ".log")

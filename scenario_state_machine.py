@@ -71,15 +71,18 @@ class ScenarioStateMachine:
 
     def __execute_next_step(self, msg=None):
         self.current_step_no += 1
-        self.logger.info("Executing step no %d." % self.current_step_no)
         step = self.__current_step()
         if step is None:
             self.finish_scenario()
             # self.current_step_no -= 1
             return ScenarioResult.FINISHED
+        self.logger.info(
+            "Executing step no %d. Named %s", self.current_step_no, step.name
+        )
         step_is_not_async = step.execute(msg)
         if step_is_not_async:
             self.__execute_next_step()
+        return ScenarioResult.NEXT_STEP
 
     def __current_step(self):
         if self.current_step_no >= len(self.steps):
@@ -87,11 +90,12 @@ class ScenarioStateMachine:
         return self.steps[self.current_step_no]
 
     def process_message(self, msg):
+        self.logger.debug("Processing message ")
+        self.logger.debug(msg)
         if not self.active:
             return ScenarioResult.INACTIVE
         if self.__current_step().is_waiting_for(msg):
-            self.__execute_next_step(msg)
-            return ScenarioResult.NEXT_STEP
+            return self.__execute_next_step(msg)
         else:
             if self.__current_step().is_timeout():
                 self.finish_scenario()
@@ -103,6 +107,7 @@ class ScenarioStateMachine:
         return not self.active and (self.current_step_no < len(self.steps))
 
     def finish_scenario(self):
+        self.logger.info("Scenario finished!")
         self.active = False
 
 
@@ -169,5 +174,6 @@ class ReceiveMsgStep(Step):
     def is_waiting_for(self, msg):
         topic = msg["topic"]
         if topic == self.topic_listen:
+            self.logger.info("I was waiting for it")
             return True
         return False
