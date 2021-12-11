@@ -123,7 +123,7 @@ class CameraNode(MqttNode):
             center_boundaries["class_label"] = self.identifier.label_for_number(
                 int(center_boundaries["class_id"])
             )
-            self.send(center_boundaries)
+            # self.send(center_boundaries)
         else:
             self.logger.debug(
                 "Other objects detected, class %s",

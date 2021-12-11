@@ -1,3 +1,4 @@
+from time import sleep
 import paho.mqtt.client as mqtt
 import json
 import serial
@@ -63,8 +64,18 @@ class MqttNode:
         elif not isinstance(message, dict):
             raise Exception("Message should be dict or str but is %s!" % type(message))
         message["sender"] = self.nodename
-        self.logger.info("Publish..... %s", message)
-        self.client.publish(topic, json.dumps(message), qos=1)
+
+        retries = 5
+        while retries > 0:
+            ret = self.client.publish(topic, json.dumps(message), qos=1)
+            if ret.rc != 0:
+                self.logger.warn(
+                    "Publish..... %s, return_val %s", json.dumps(message), ret.rc
+                )
+                sleep(0.5)
+                retries -= 1
+            else:
+                break
 
     def __setup_logger(self, log_folder):
         log_filename = os.path.join(log_folder, self.nodename + ".log")

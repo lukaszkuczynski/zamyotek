@@ -81,7 +81,7 @@ class ScenarioStateMachine:
         )
         step_is_not_async = step.execute(msg)
         if step_is_not_async:
-            self.__execute_next_step()
+            self.__execute_next_step(msg)
         return ScenarioResult.NEXT_STEP
 
     def __current_step(self):
@@ -157,7 +157,7 @@ class MqttSendStep(Step):
         if msg is None:
             msg = self.msg
         self.logger.info("Will send msg to '%s' topic" % self.topic_to)
-        self.mqtt_node.send_to(topic=self.topic_to, message=self.msg)
+        self.mqtt_node.send_to(topic=self.topic_to, message=msg)
         return True
 
 

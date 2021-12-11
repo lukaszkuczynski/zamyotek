@@ -22,6 +22,9 @@ TOPIC_RELOAD_SETTINGS = "/cmd/reload_settings"
 TOPIC_CMD_SERVO_HEAD = "/cmd/servo/head_position"
 TOPIC_TAKE_PHOTO = "/cmd/take_photo"
 TOPIC_NOTIFY_OBJECT_RECOGNIZED = "/notify/object_recognized"
+TOPIC_CMD_SPEAK = "/cmd/speak"
+TOPIC_NOTIFY_SPOKEN = "/notify/spoken"
+
 
 TURNING_TIME_NOOP = 1000
 TOO_CLOSE_OBJECT_WIDTH = 800
@@ -70,6 +73,13 @@ class BrainNode(MqttNode):
                 "topic": TOPIC_NOTIFY_OBJECT_RECOGNIZED,
                 "timeout": 10,
             },
+            {"name": "speak_msg", "type": "send_mqtt", "topic": TOPIC_CMD_SPEAK},
+            {
+                "name": "wait_for_speec",
+                "type": "receive_msg",
+                "topic": TOPIC_NOTIFY_SPOKEN,
+                "timeout": 5,
+            },
         ]
         self.tell_me_scenario = ScenarioStateMachine("tell_me_scenario", steps, self)
         # this should be follow
@@ -82,6 +92,7 @@ class BrainNode(MqttNode):
                 TOPIC_MODE_CHANGER,
                 TOPIC_RELOAD_SETTINGS,
                 TOPIC_NOTIFY_OBJECT_RECOGNIZED,
+                TOPIC_NOTIFY_SPOKEN,
             ],
             autostart_listening=False,
         )
