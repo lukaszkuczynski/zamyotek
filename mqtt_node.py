@@ -64,18 +64,22 @@ class MqttNode:
         elif not isinstance(message, dict):
             raise Exception("Message should be dict or str but is %s!" % type(message))
         message["sender"] = self.nodename
-
-        retries = 5
-        while retries > 0:
+        MAX_RETRIES = 5
+        retries = 1
+        while retries <= MAX_RETRIES:
             ret = self.client.publish(topic, json.dumps(message), qos=1)
+            self.logger.info(ret.rc)
             if ret.rc != 0:
                 self.logger.warn(
                     "Publish..... %s, return_val %s", json.dumps(message), ret.rc
                 )
                 sleep(0.5)
-                retries -= 1
+                retries += 1
             else:
                 break
+        self.logger.info("retries %d", retries)
+        if retries == MAX_RETRIES:
+            self.logger.error("Maximum number of retries while sending MQTT message!")
 
     def __setup_logger(self, log_folder):
         log_filename = os.path.join(log_folder, self.nodename + ".log")

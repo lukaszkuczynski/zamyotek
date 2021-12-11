@@ -105,6 +105,7 @@ class CameraNode(MqttNode):
 
     def on_new_picture(self, img):
         if os.path.exists(CAMERA_TAKE_PICTURE_FILE):
+            self.logger.info("New picture event.")
             os.remove(CAMERA_TAKE_PICTURE_FILE)
             now = datetime.now()  # current date and time
             date_time = now.strftime("%Y_%m_%d_%H_%M_%S")
@@ -123,7 +124,7 @@ class CameraNode(MqttNode):
             center_boundaries["class_label"] = self.identifier.label_for_number(
                 int(center_boundaries["class_id"])
             )
-            # self.send(center_boundaries)
+            self.send(center_boundaries)
         else:
             self.logger.debug(
                 "Other objects detected, class %s",
@@ -161,25 +162,25 @@ while True:
     detections = net.Detect(img, overlay=opt.overlay)
 
     # print the detections
-    if len(detections) == 0:
-        camera_node.logger.debug(
-            "detected {:d} objects in image".format(len(detections))
-        )
-    else:
-        camera_node.logger.info(
-            "detected {:d} objects in image".format(len(detections))
-        )
+    # if len(detections) == 0:
+    #     camera_node.logger.debug(
+    #         "detected {:d} objects in image".format(len(detections))
+    #     )
+    # else:
+    #     camera_node.logger.info(
+    #         "detected {:d} objects in image".format(len(detections))
+    #     )
     camera_node.on_new_picture(img)
-    for detection in detections:
-        camera_node.logger.debug(detection)
-        camera_node.send_center(
-            {
-                "class_id": detection.ClassID,
-                "center": detection.Center,
-                "confidence": detection.Confidence,
-                "width": detection.Width,
-            }
-        )
+    # for detection in detections:
+    #     camera_node.logger.debug(detection)
+    #     camera_node.send_center(
+    #         {
+    #             "class_id": detection.ClassID,
+    #             "center": detection.Center,
+    #             "confidence": detection.Confidence,
+    #             "width": detection.Width,
+    #         }
+    #     )
 
     # render the image
     output.Render(img)

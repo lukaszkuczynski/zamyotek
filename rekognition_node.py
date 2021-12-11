@@ -27,8 +27,10 @@ class RekognitionNode(MqttNode):
         picture_path = camera_photo_msg["msg"]
         self.logger.info("Received picture on %s", picture_path)
         labels_and_confidence = self.recognize_from_path(picture_path)
-        self.logger.info("Choosing label - blunt shot for the 1st one")
         object_class = labels_and_confidence[0][0]
+        self.logger.info(
+            "Choosing label - blunt shot for the 1st one : '%s'", object_class
+        )
         self.send(object_class)
 
 
