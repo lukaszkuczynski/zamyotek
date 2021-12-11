@@ -78,8 +78,9 @@ class MqttNode:
             else:
                 break
         self.logger.info("retries %d", retries)
-        if retries == MAX_RETRIES:
+        if retries >= MAX_RETRIES:
             self.logger.error("Maximum number of retries while sending MQTT message!")
+            self.client.reconnect()
 
     def __setup_logger(self, log_folder):
         log_filename = os.path.join(log_folder, self.nodename + ".log")
