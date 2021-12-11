@@ -63,7 +63,6 @@ class ScenarioStateMachineTestCase(TestCase):
         msgs[3]["topic"] = "/test/scenariolisten"
         for n, msg in enumerate(msgs):
             res = machine.process_message(msg)
-            print(res)
             sleep(1)
         self.assertTrue(machine.interrupted())
 
@@ -88,7 +87,6 @@ class ScenarioStateMachineTestCase(TestCase):
         msgs[3]["topic"] = "/test/scenariolisten"
         for n, msg in enumerate(msgs):
             res = machine.process_message(msg)
-            print(res)
             sleep(1)
         self.assertFalse(machine.interrupted())
 

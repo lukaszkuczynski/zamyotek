@@ -18,7 +18,7 @@ def setup_logger(name, log_folder="logs"):
     fh.setLevel(logging.DEBUG)
     # create console handler with a higher log level
     ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
+    ch.setLevel(logging.DEBUG)
     # create formatter and add it to the handlers
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -62,20 +62,22 @@ class ScenarioStateMachine:
             for step in steps
             if isinstance(step, dict)
         ]
+        # self.logger.debug(steps)
         self.current_step_no = -1
         self.active = True
 
     def start(self):
         self.__execute_next_step()
 
-    def __execute_next_step(self):
+    def __execute_next_step(self, msg=None):
         self.current_step_no += 1
+        self.logger.info("Executing step no %d." % self.current_step_no)
         step = self.__current_step()
         if step is None:
             self.finish_scenario()
             # self.current_step_no -= 1
             return ScenarioResult.FINISHED
-        step_is_not_async = step.execute()
+        step_is_not_async = step.execute(msg)
         if step_is_not_async:
             self.__execute_next_step()
 
@@ -88,7 +90,7 @@ class ScenarioStateMachine:
         if not self.active:
             return ScenarioResult.INACTIVE
         if self.__current_step().is_waiting_for(msg):
-            self.__execute_next_step()
+            self.__execute_next_step(msg)
             return ScenarioResult.NEXT_STEP
         else:
             if self.__current_step().is_timeout():
@@ -123,7 +125,7 @@ class Step:
             return True
         return False
 
-    def execute(self):
+    def execute(self, msg=None):
         pass
 
 
@@ -132,7 +134,7 @@ class SleepStep(Step):
         super().__init__(cfg, logger)
         self.waiting_time = cfg["waiting_time"]
 
-    def execute(self):
+    def execute(self, msg=None):
         self.logger.debug("Step name %s", self.name)
         self.logger.info("Executing sleep for %s seconds.", self.waiting_time)
         sleep(self.waiting_time)
@@ -143,10 +145,13 @@ class MqttSendStep(Step):
     def __init__(self, cfg, logger, mqtt_node) -> None:
         super().__init__(cfg, logger)
         self.topic_to = cfg["topic"]
-        self.msg = cfg["msg"]
+        self.msg = cfg.get("msg")
         self.mqtt_node = mqtt_node
 
-    def execute(self):
+    def execute(self, msg=None):
+        if msg is None:
+            msg = self.msg
+        self.logger.info("Will send msg to '%s' topic" % self.topic_to)
         self.mqtt_node.send_to(topic=self.topic_to, message=self.msg)
         return True
 
@@ -158,7 +163,7 @@ class ReceiveMsgStep(Step):
             raise Exception("This Step requires 'timeout' configuration key")
         self.topic_listen = cfg["topic"]
 
-    def execute(self):
+    def execute(self, msg=None):
         return False
 
     def is_waiting_for(self, msg):

@@ -4,9 +4,18 @@ import serial
 import logging
 import os
 
-class MqttNode:
 
-    def __init__(self, nodename, topic_pub, topic_sub, hostname="localhost", port=1883, log_folder="logs") -> None:
+class MqttNode:
+    def __init__(
+        self,
+        nodename,
+        topic_pub,
+        topic_sub,
+        hostname="localhost",
+        port=1883,
+        log_folder="logs",
+        autostart_listening=True,
+    ) -> None:
         self.nodename = nodename
         self.logger = self.__setup_logger(log_folder)
         self.hostname = hostname
@@ -17,19 +26,23 @@ class MqttNode:
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.connect(hostname, port, 60)
-        self.reload_settings()    
-        if topic_sub != "":
+        self.reload_settings()
+        if autostart_listening:
+            self.start_listening()
+
+    def start_listening(self):
+        if self.topic_sub != "":
             self.client.loop_forever()
-    
+
     def reload_settings(self):
         pass
-            
+
     def on_connect(self, client, userdata, flags, rc):
-        self.logger.info("Connected with result code "+str(rc))
+        self.logger.info("Connected with result code " + str(rc))
 
         if self.topic_sub != "":
             if isinstance(self.topic_sub, list):
-                topics = [(name,1) for name in self.topic_sub]
+                topics = [(name, 1) for name in self.topic_sub]
             else:
                 topics = self.topic_sub
             self.client.subscribe(topics)
@@ -39,20 +52,20 @@ class MqttNode:
         self.logger.debug(str(msg.payload))
 
     def send(self, message):
-       self.send_to(message, self.topic_pub)
+        self.send_to(message, self.topic_pub)
 
     def send_to(self, message, topic):
         if isinstance(message, str):
             text_message = message
             message = {}
-            message['msg'] = text_message
+            message["msg"] = text_message
         elif not isinstance(message, dict):
-            raise Exception("Message should be dict!")
-        message['sender'] = self.nodename
+            raise Exception("Message should be dict or str but is %s!" % type(message))
+        message["sender"] = self.nodename
         self.client.publish(topic, json.dumps(message))
 
     def __setup_logger(self, log_folder):
-        log_filename = os.path.join(log_folder, self.nodename+".log")
+        log_filename = os.path.join(log_folder, self.nodename + ".log")
         logger = logging.getLogger(self.nodename)
         logger.setLevel(logging.DEBUG)
         # create file handler which logs even debug messages
@@ -62,7 +75,9 @@ class MqttNode:
         ch = logging.StreamHandler()
         ch.setLevel(logging.INFO)
         # create formatter and add it to the handlers
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         ch.setFormatter(formatter)
         fh.setFormatter(formatter)
         # add the handlers to logger
@@ -72,34 +87,31 @@ class MqttNode:
 
 
 class MqttToSerialNode(MqttNode):
-
     def __init__(self, nodename, topic_sub, port_name, baudrate):
         self.serial_port = self.__create_serial(port_name, baudrate)
         super().__init__(nodename, "", topic_sub)
         self.port_name = port_name
         self.baudrate = baudrate
 
-
     def __create_serial(self, port_name, baudrate):
         return serial.Serial(
-            port=port_name, 
-            baudrate = baudrate,
+            port=port_name,
+            baudrate=baudrate,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
             bytesize=serial.EIGHTBITS,
-            timeout=1
+            timeout=1,
         )
 
     def on_message(self, client, userdata, msg):
-        print(msg.payload)
+        self.logger.debug(msg.payload)
         command = json.loads(msg.payload)
         self.logger.debug("Writing to serial command = %s", command)
-        command_encoded = (command['msg']+"\n").encode("ascii")
+        command_encoded = (command["msg"] + "\n").encode("ascii")
         self.serial_port.write(command_encoded)
 
 
 class SerialToMqttNode(MqttNode):
-
     def __init__(self, nodename, topic_pub, port_name, baudrate):
         self.serial_port = self.__create_serial(port_name, baudrate)
         super().__init__(nodename, topic_pub, "")
@@ -107,23 +119,21 @@ class SerialToMqttNode(MqttNode):
         self.baudrate = baudrate
         self.__start_listening()
 
-
     def __create_serial(self, port_name, baudrate):
         return serial.Serial(
-            port=port_name, 
-            baudrate = baudrate,
+            port=port_name,
+            baudrate=baudrate,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
             bytesize=serial.EIGHTBITS,
-            timeout=1
+            timeout=1,
         )
 
     def __start_listening(self):
         while True:
             line_bytes = self.serial_port.readline()
-            line = line_bytes.decode('UTF-8')
+            line = line_bytes.decode("UTF-8")
             self.logger.debug("Received on serial line = %s", line)
-            if line.startswith('{'):
+            if line.startswith("{"):
                 line_dict = json.loads(line)
                 self.send(line_dict)
-

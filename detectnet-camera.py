@@ -36,23 +36,46 @@ import shutil
 import yaml
 
 from datetime import datetime
-# parse the command line
-parser = argparse.ArgumentParser(description="Locate objects in a live camera stream using an object detection DNN.", 
-                                 formatter_class=argparse.RawTextHelpFormatter, epilog=jetson.inference.detectNet.Usage() +
-                                 jetson.utils.videoSource.Usage() + jetson.utils.videoOutput.Usage() + jetson.utils.logUsage())
 
-parser.add_argument("input_URI", type=str, default="", nargs='?', help="URI of the input stream")
-parser.add_argument("output_URI", type=str, default="", nargs='?', help="URI of the output stream")
-parser.add_argument("--network", type=str, default="ssd-mobilenet-v2", help="pre-trained model to load (see below for options)")
-parser.add_argument("--overlay", type=str, default="box,labels,conf", help="detection overlay flags (e.g. --overlay=box,labels,conf)\nvalid combinations are:  'box', 'labels', 'conf', 'none'")
-parser.add_argument("--threshold", type=float, default=0.5, help="minimum detection threshold to use") 
+# parse the command line
+parser = argparse.ArgumentParser(
+    description="Locate objects in a live camera stream using an object detection DNN.",
+    formatter_class=argparse.RawTextHelpFormatter,
+    epilog=jetson.inference.detectNet.Usage()
+    + jetson.utils.videoSource.Usage()
+    + jetson.utils.videoOutput.Usage()
+    + jetson.utils.logUsage(),
+)
+
+parser.add_argument(
+    "input_URI", type=str, default="", nargs="?", help="URI of the input stream"
+)
+parser.add_argument(
+    "output_URI", type=str, default="", nargs="?", help="URI of the output stream"
+)
+parser.add_argument(
+    "--network",
+    type=str,
+    default="ssd-mobilenet-v2",
+    help="pre-trained model to load (see below for options)",
+)
+parser.add_argument(
+    "--overlay",
+    type=str,
+    default="box,labels,conf",
+    help="detection overlay flags (e.g. --overlay=box,labels,conf)\nvalid combinations are:  'box', 'labels', 'conf', 'none'",
+)
+parser.add_argument(
+    "--threshold", type=float, default=0.5, help="minimum detection threshold to use"
+)
 parser.add_argument("--saved_pictures_folder", help="Folder to save taken pictures")
 
-is_headless = ["--headless"] if sys.argv[0].find('console.py') != -1 else [""]
+is_headless = ["--headless"] if sys.argv[0].find("console.py") != -1 else [""]
 
 CAMERA_RELOAD_FILE = "camera_change_settings"
 CAMERA_TAKE_PICTURE_FILE = "camera_take_picture"
 CONFIG_PATH = "config.yaml"
+TOPIC_NOTIFY_PHOTO_TAKEN = "/notify/photo"
 
 try:
     opt = parser.parse_known_args()[0]
@@ -60,9 +83,9 @@ except:
     parser.print_help()
     sys.exit(0)
 
-# create video output object 
-output = jetson.utils.videoOutput(opt.output_URI, argv=sys.argv+is_headless)
-    
+# create video output object
+output = jetson.utils.videoOutput(opt.output_URI, argv=sys.argv + is_headless)
+
 # load the object detection network
 net = jetson.inference.detectNet(opt.network, sys.argv, opt.threshold)
 
@@ -71,8 +94,8 @@ input = jetson.utils.videoSource(opt.input_URI, argv=sys.argv)
 
 import json
 
-class CameraNode(MqttNode):
 
+class CameraNode(MqttNode):
     def __init__(self, args):
         filename = "/usr/local/bin/networks/SSD-Mobilenet-v2/ssd_coco_labels.txt"
         self.identifier = LabelIdentifier(filename)
@@ -83,39 +106,45 @@ class CameraNode(MqttNode):
     def on_new_picture(self, img):
         if os.path.exists(CAMERA_TAKE_PICTURE_FILE):
             os.remove(CAMERA_TAKE_PICTURE_FILE)
-            now = datetime.now() # current date and time
+            now = datetime.now()  # current date and time
             date_time = now.strftime("%Y_%m_%d_%H_%M_%S")
             filename_pic = f"{date_time}.jpg"
             full_pic_path = os.path.join(self.pics_folder, filename_pic)
             jetson.utils.saveImage(full_pic_path, img)
             photo_msg = full_pic_path
             self.logger.debug("sending")
-            self.send_to(photo_msg, "/notify/photo")
+            self.send_to(photo_msg, TOPIC_NOTIFY_PHOTO_TAKEN)
 
     def send_center(self, center_boundaries):
         if os.path.exists(CAMERA_RELOAD_FILE):
             os.remove(CAMERA_RELOAD_FILE)
             self.reload_settings()
-        if center_boundaries['class_id'] in self.classes_to_check:
-            center_boundaries['class_label'] = self.identifier.label_for_number(int(center_boundaries['class_id'])) 
+        if center_boundaries["class_id"] in self.classes_to_check:
+            center_boundaries["class_label"] = self.identifier.label_for_number(
+                int(center_boundaries["class_id"])
+            )
             self.send(center_boundaries)
         else:
-            self.logger.debug("Other objects detected, class %s", self.identifier.label_for_number(int(center_boundaries['class_id'])))
-
+            self.logger.debug(
+                "Other objects detected, class %s",
+                self.identifier.label_for_number(int(center_boundaries["class_id"])),
+            )
 
     def reload_settings(self):
         self.logger.info("Re-loading settings")
         with open(CONFIG_PATH, "r") as stream:
             config = yaml.safe_load(stream)
-            search_classes = config['camera']['classes_search']
-            return_classes = config['camera']['classes_return']
+            search_classes = config["camera"]["classes_search"]
+            return_classes = config["camera"]["classes_return"]
             classes = search_classes
             classes.extend(return_classes)
             self.logger.info("Camera will search for following labels = %s" % classes)
-            label_ints = [self.identifier.number_for_label(class_text) for class_text in classes]
+            label_ints = [
+                self.identifier.number_for_label(class_text) for class_text in classes
+            ]
             self.logger.info("It reflect the following class IDs = %s" % label_ints)
-            print(label_ints)
-            self.classes_to_check = label_ints 
+            self.classes_to_check = label_ints
+
 
 # class id to report
 # 1 - person, 37 - sportsball
@@ -133,31 +162,36 @@ while True:
 
     # print the detections
     if len(detections) == 0:
-        camera_node.logger.debug("detected {:d} objects in image".format(len(detections)))
+        camera_node.logger.debug(
+            "detected {:d} objects in image".format(len(detections))
+        )
     else:
-        camera_node.logger.info("detected {:d} objects in image".format(len(detections)))
+        camera_node.logger.info(
+            "detected {:d} objects in image".format(len(detections))
+        )
     camera_node.on_new_picture(img)
     for detection in detections:
         camera_node.logger.debug(detection)
-        camera_node.send_center({
-            "class_id": detection.ClassID,
-            "center": detection.Center,
-            "confidence": detection.Confidence,
-            "width": detection.Width
-        })
-
+        camera_node.send_center(
+            {
+                "class_id": detection.ClassID,
+                "center": detection.Center,
+                "confidence": detection.Confidence,
+                "width": detection.Width,
+            }
+        )
 
     # render the image
     output.Render(img)
 
     # update the title bar
-    output.SetStatus("{:s} | Network {:.0f} FPS".format(opt.network, net.GetNetworkFPS()))
+    output.SetStatus(
+        "{:s} | Network {:.0f} FPS".format(opt.network, net.GetNetworkFPS())
+    )
 
     # print out performance info
-    #net.PrintProfilerTimes()
+    # net.PrintProfilerTimes()
 
     # exit on input/output EOS
     if not input.IsStreaming() or not output.IsStreaming():
         break
-
-

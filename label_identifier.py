@@ -1,5 +1,4 @@
 class LabelIdentifier:
-
     def __init__(self, label_filename):
         self.labels = self.__read_labels(label_filename)
         self.labels_inv = {v: k for k, v in self.labels.items()}
@@ -14,7 +13,9 @@ class LabelIdentifier:
 
     def label_for_number(self, number):
         if not number in self.labels.keys():
-            raise Exception(f"Number {number} not in labels, max {max(self.labels.keys())}") 
+            raise Exception(
+                f"Number {number} not in labels, max {max(self.labels.keys())}"
+            )
         return self.labels[number]
 
     def number_for_label(self, text):
@@ -26,8 +27,8 @@ class LabelIdentifier:
         return set(self.labels.values())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     filename = "/usr/local/bin/networks/SSD-Mobilenet-v2/ssd_coco_labels.txt"
     ident = LabelIdentifier(filename)
     print(ident.labels)
-    print(ident.number_for_label('person'))
+    print(ident.number_for_label("person"))
