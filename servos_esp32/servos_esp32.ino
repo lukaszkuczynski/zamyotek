@@ -6,13 +6,14 @@ int rightServoPin = 26;
 const int freq = 50;
 const int resolution = 8;
 
-const int leftServoOpened = 90;
-const int leftServoClosed = 45;
+const int leftServoOpened = 100;
+const int leftServoClosed = 20;
 
-const int rightServoOpened = 90;
-const int rightServoClosed = 135;
 
 const String DEFAULT_DEGREE = "0";
+
+const int steps = 7;
+const int stepDelay = 100;
 
 Servo leftServo;
 Servo rightServo;
@@ -27,13 +28,22 @@ void setup(){
 }
 
 void openGate() {
-  leftServo.write(leftServoOpened);
-  rightServo.write(rightServoOpened);  
+  int step_size = abs(leftServoClosed - leftServoOpened) / steps;
+  for (int pos=leftServoClosed; pos<leftServoOpened; pos+=step_size) {
+    leftServo.write(pos);  
+    delay(stepDelay);
+  }
 }
 
 void closeGate() {
+  int step_size = abs(leftServoClosed - leftServoOpened) / steps;
+  for (int pos=leftServoOpened; pos>leftServoClosed; pos-=step_size) {
+    leftServo.write(pos);  
+    delay(stepDelay);
+  }
+  
   leftServo.write(leftServoClosed);
-  rightServo.write(rightServoClosed);  
+//  rightServo.write(rightServoClosed);  
 }
 
 void loop(){
@@ -49,9 +59,9 @@ void loop(){
     }
     int servoDegree = cmd_arg.toInt();
     Serial.printf("Command received %s \n", command);
-    if (command.equals("open_gate")) {
+    if (command.equals("open_gate") || command.equals("godown")) {
       openGate();
-    } else if (command.equals("close_gate")) {
+    } else if ((command.equals("close_gate") || command.equals("goup"))) {
       closeGate();
     }
   }
