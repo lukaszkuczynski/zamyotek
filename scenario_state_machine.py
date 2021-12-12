@@ -68,6 +68,8 @@ class ScenarioStateMachine:
         self.storage = {}
 
     def start(self):
+        self.active = True
+        self.current_step_no = -1
         self.__execute_next_step(msg=None)
 
     def __execute_next_step(self, msg=None):
@@ -77,9 +79,7 @@ class ScenarioStateMachine:
             self.finish_scenario()
             # self.current_step_no -= 1
             return ScenarioResult.FINISHED
-        self.logger.info(
-            "Executing step no %d. Named %s", self.current_step_no, step.name
-        )
+        self.logger.info("Executing step#%d: %s", self.current_step_no, step.name)
         step_is_not_async = step.execute(msg, self.storage)
         if step_is_not_async:
             self.__execute_next_step(msg)
@@ -96,8 +96,8 @@ class ScenarioStateMachine:
             self.storage[keyname] = msg
 
     def process_message(self, msg):
-        self.logger.debug("Processing message ")
-        self.logger.debug(msg)
+        # self.logger.debug("Processing message ")
+        # self.logger.debug(msg)
         if not self.active:
             return ScenarioResult.INACTIVE
         if self.__current_step().is_waiting_for(msg):
@@ -126,7 +126,6 @@ class Step:
             self.timeout = 0
         else:
             self.timeout = cfg["timeout"]
-            self.started = datetime.now()
         self.save_to_storage_key = cfg.get("save_to_storage_key", None)
         self.read_from_storage_key = cfg.get("read_from_storage_key", None)
 
@@ -140,7 +139,7 @@ class Step:
         return False
 
     def execute(self, msg=None, storage=None):
-        pass
+        self.started = datetime.now()
 
 
 class SleepStep(Step):
@@ -149,6 +148,7 @@ class SleepStep(Step):
         self.waiting_time = cfg["waiting_time"]
 
     def execute(self, msg=None, storage=None):
+        super().execute(msg, storage)
         self.logger.debug("Step name %s", self.name)
         self.logger.info("Executing sleep for %s seconds.", self.waiting_time)
         sleep(self.waiting_time)
@@ -178,6 +178,7 @@ class MqttSendStep(Step):
             return msg_arg
 
     def execute(self, msg=None, storage=None):
+        super().execute(msg, storage)
         msg = self.__resolve_msg(msg, storage)
         self.logger.info("Will send msg to '%s' topic" % self.topic_to)
         self.mqtt_node.send_to(topic=self.topic_to, message=msg)
@@ -192,6 +193,7 @@ class ReceiveMsgStep(Step):
         self.topic_listen = cfg["topic"]
 
     def execute(self, msg=None, storage=None):
+        super().execute(msg, storage)
         return False
 
     def is_waiting_for(self, msg):

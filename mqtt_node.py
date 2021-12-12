@@ -67,8 +67,8 @@ class MqttNode:
         MAX_RETRIES = 5
         retries = 1
         while retries <= MAX_RETRIES:
-            ret = self.client.publish(topic, json.dumps(message), qos=1)
-            self.logger.info(ret.rc)
+            ret = self.client.publish(topic, json.dumps(message), qos=0)
+            # self.logger.info(ret.rc)
             if ret.rc != 0:
                 self.logger.warn(
                     "Publish..... %s, return_val %s", json.dumps(message), ret.rc
@@ -77,7 +77,7 @@ class MqttNode:
                 retries += 1
             else:
                 break
-        self.logger.info("retries %d", retries)
+        # self.logger.info("retries %d", retries)
         if retries >= MAX_RETRIES:
             self.logger.error("Maximum number of retries while sending MQTT message!")
             self.client.reconnect()

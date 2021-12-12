@@ -54,13 +54,13 @@ class BrainNode(MqttNode):
         self.motor_stack = AnyObjectStack(ms_ttl=2000)
         self.speed = DEFAULT_AHEAD_SPEED
         steps = [
-            {
-                "name": "look_down",
-                "type": "send_mqtt",
-                "topic": TOPIC_CMD_SERVO_HEAD,
-                "msg": "godown",
-            },
-            {"name": "servo_travel_down", "waiting_time": 1, "type": "sleep"},
+            # {
+            #     "name": "look_down",
+            #     "type": "send_mqtt",
+            #     "topic": TOPIC_CMD_SERVO_HEAD,
+            #     "msg": "godown",
+            # },
+            # {"name": "servo_travel_down", "waiting_time": 1, "type": "sleep"},
             {
                 "name": "take_photo",
                 "type": "send_mqtt",
@@ -74,13 +74,13 @@ class BrainNode(MqttNode):
                 "save_to_storage_key": "object_class",
                 "timeout": 10,
             },
-            {
-                "name": "look_up",
-                "type": "send_mqtt",
-                "topic": TOPIC_CMD_SERVO_HEAD,
-                "msg": "goup",
-            },
-            {"name": "servo_travel_up", "waiting_time": 2, "type": "sleep"},
+            # {
+            #     "name": "look_up",
+            #     "type": "send_mqtt",
+            #     "topic": TOPIC_CMD_SERVO_HEAD,
+            #     "msg": "goup",
+            # },
+            # {"name": "servo_travel_up", "waiting_time": 2, "type": "sleep"},
             {
                 "name": "speak_msg",
                 "read_from_storage_key": "object_class",
@@ -92,6 +92,11 @@ class BrainNode(MqttNode):
                 "type": "receive_msg",
                 "topic": TOPIC_NOTIFY_SPOKEN,
                 "timeout": 5,
+            },
+            {
+                "name": "sleep_idle_time_after_scenario",
+                "waiting_time": 1,
+                "type": "sleep",
             },
         ]
         self.tell_me_scenario = ScenarioStateMachine("tell_me_scenario", steps, self)
@@ -109,7 +114,7 @@ class BrainNode(MqttNode):
             ],
             autostart_listening=False,
         )
-        self.change_mode(BrainMode.TELLME)
+        self.change_mode(BrainMode.FOLLOW)
         self.start_listening()
 
     def reload_settings(self):
@@ -141,12 +146,14 @@ class BrainNode(MqttNode):
             mode_msg = json.loads(msg.payload)
             process_result = self.tell_me_scenario.process_message(mode_msg)
             self.logger.debug("Process result %s", process_result)
-            if process_result == ScenarioResult.FINISHED:
-                self.logger.info("Scenario in brain finished!!!")
-                self.change_mode(BrainMode.IDLE)
+            if process_result in (ScenarioResult.FINISHED, ScenarioResult.INACTIVE):
+                self.logger.info(
+                    "Scenario in brain finished - state %s!", process_result
+                )
+                self.change_mode(BrainMode.FOLLOW)
             elif process_result == ScenarioResult.TIMEOUT:
                 self.logger.warn("Timeout. Tellme scenario failed :(")
-                self.change_mode(BrainMode.IDLE)
+                self.change_mode(BrainMode.FOLLOW)
         elif self.brain_mode == BrainMode.FOLLOW:
             if msg.topic == TOPIC_RELOAD_SETTINGS:
                 self.reload_settings()
@@ -182,6 +189,7 @@ class BrainNode(MqttNode):
                             if distance is not None:
                                 # when distance is small then we should stop and start telling what's that
                                 if distance < OBJECT_TO_TELL_DISTANCE:
+                                    move_dir = "stop"
                                     self.change_mode(BrainMode.TELLME)
                                 elif distance < OBJECT_TO_TELL_DISTANCE + 10:
                                     self.speed = DEFAULT_AHEAD_SPEED - 30
@@ -197,13 +205,10 @@ class BrainNode(MqttNode):
                         self.motor_stack.push(move_dir)
                         self.send(move_dir)
                         if move_dir != self.last_move_dir:
-                            if self.move_mode == "searching":
-                                if move_dir == "stop":
-                                    self.send_to("close_gate", TOPIC_SERVO)
-                                elif "ahead" in move_dir:
-                                    self.send_to("open_gate", TOPIC_SERVO)
-                            else:
+                            if move_dir == "stop":
                                 self.send_to("close_gate", TOPIC_SERVO)
+                            elif "ahead" in move_dir:
+                                self.send_to("open_gate", TOPIC_SERVO)
                         self.last_move_dir = move_dir
 
                 self.logger.debug(

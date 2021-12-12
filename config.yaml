@@ -2,4 +2,4 @@ camera:
   classes_return:
   - person
   classes_search:
-  - orange
+  - person

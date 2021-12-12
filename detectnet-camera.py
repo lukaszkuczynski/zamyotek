@@ -121,9 +121,9 @@ class CameraNode(MqttNode):
             os.remove(CAMERA_RELOAD_FILE)
             self.reload_settings()
         if center_boundaries["class_id"] in self.classes_to_check:
-            center_boundaries["class_label"] = self.identifier.label_for_number(
-                int(center_boundaries["class_id"])
-            )
+            label = self.identifier.label_for_number(int(center_boundaries["class_id"]))
+            center_boundaries["class_label"] = label
+            self.logger.info("Sending rect for %s", label)
             self.send(center_boundaries)
         else:
             self.logger.debug(
@@ -162,25 +162,26 @@ while True:
     detections = net.Detect(img, overlay=opt.overlay)
 
     # print the detections
-    # if len(detections) == 0:
-    #     camera_node.logger.debug(
-    #         "detected {:d} objects in image".format(len(detections))
-    #     )
-    # else:
-    #     camera_node.logger.info(
-    #         "detected {:d} objects in image".format(len(detections))
-    #     )
+    if len(detections) == 0:
+        camera_node.logger.debug(
+            "detected {:d} objects in image".format(len(detections))
+        )
+    else:
+        camera_node.logger.info(
+            "detected {:d} objects in image".format(len(detections))
+        )
     camera_node.on_new_picture(img)
-    # for detection in detections:
-    #     camera_node.logger.debug(detection)
-    #     camera_node.send_center(
-    #         {
-    #             "class_id": detection.ClassID,
-    #             "center": detection.Center,
-    #             "confidence": detection.Confidence,
-    #             "width": detection.Width,
-    #         }
-    #     )
+    for detection in detections:
+        camera_node.logger.debug(detection)
+        camera_node.send_center(
+            {
+                "class_id": detection.ClassID,
+                "center": detection.Center,
+                "confidence": detection.Confidence,
+                "width": detection.Width,
+                "topic": "camera_out",
+            }
+        )
 
     # render the image
     output.Render(img)

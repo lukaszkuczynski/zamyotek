@@ -3,15 +3,20 @@ camera_node_pid := $(shell ps -aux | grep camera.py | grep -v grep | cut -f3 -d'
 brain_node_pid := $(shell ps -aux | grep brain.py | grep -v grep | cut -f3 -d' ')
 motor_node_pid := $(shell ps -aux | grep motor_mqtt_node.py | grep -v grep | cut -f3 -d' ')
 servo_node_pid := $(shell ps -aux | grep servo_mqtt_node.py | grep -v grep | cut -f3 -d' ')
+rekognition_node_pid  := $(shell ps -aux | grep rekognition_node.py | grep -v grep | cut -f3 -d' ')
+async_photographer_node_pid  := $(shell ps -aux | grep async_photographer_node.py | grep -v grep | cut -f3 -d' ')
 
 down:
-	kill -2 $(sensor_node_pid) $(camera_node_pid) $(brain_node_pid) $(motor_node_pid) $(servo_node_pid)
+	kill -2 $(sensor_node_pid) $(camera_node_pid) $(brain_node_pid) $(motor_node_pid) $(servo_node_pid) $(rekognition_node_pid) $(async_photographer_node_pid)
 
 nobrainup: 
-	make -j 4 motor servos sensor camera
-	
+	make -j 6 motor servos sensor camera recognition photographer
+
+nocamerabrainup: 
+	make -j 6 motor servos sensor recognition photographer
+
 up: 
-	make -j 5 brain motor servos sensor camera
+	make -j 7 brain motor servos sensor camera recognition photographer
 
 build:
 	pip install -r requirements.txt
@@ -56,3 +61,9 @@ rsync:
 
 reactapp:
 	cd react-mqtt-test && HOST=0.0.0.0 PORT=3000 ./node_modules/.bin/react-scripts start
+
+recognition:
+	. venv/bin/activate && python3 rekognition_node.py
+
+photographer:
+	python3 async_photographer_node.py
