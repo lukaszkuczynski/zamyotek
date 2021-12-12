@@ -1,6 +1,7 @@
 from mqtt_node import MqttNode
 import json
 import boto3
+from abc import abstractclassmethod
 
 TOPIC_NOTIFY_PHOTO_TAKEN = "/notify/photo"
 TOPIC_NOTIFY_OBJECT_RECOGNIZED = "/notify/object_recognized"
@@ -8,6 +9,7 @@ TOPIC_NOTIFY_OBJECT_RECOGNIZED = "/notify/object_recognized"
 
 class RekognitionNode(MqttNode):
     def __init__(self):
+        self.label_strategy = LabelChoiceRememberingStrategy()
         super().__init__(
             "rekognition", TOPIC_NOTIFY_OBJECT_RECOGNIZED, TOPIC_NOTIFY_PHOTO_TAKEN
         )
@@ -27,11 +29,40 @@ class RekognitionNode(MqttNode):
         picture_path = camera_photo_msg["msg"]
         self.logger.info("Received picture on %s", picture_path)
         labels_and_confidence = self.recognize_from_path(picture_path)
-        object_class = labels_and_confidence[0][0]
+        object_class = self.label_strategy.choose_label(labels_and_confidence)
         self.logger.info(
-            "Choosing label - blunt shot for the 1st one : '%s'", object_class
+            "Choosing label - (strategy %s) : '%s'",
+            type(self.label_strategy),
+            object_class,
         )
         self.send(object_class)
+
+
+class LabelChoiceStrategy:
+    @abstractclassmethod
+    def choose_label(self, labels_and_confidence):
+        pass
+
+
+class LabelChoiceStrategyFirst(LabelChoiceStrategy):
+    def choose_label(self, labels_and_confidence):
+        return labels_and_confidence[0][0]
+
+
+class LabelChoiceRememberingStrategy(LabelChoiceStrategy):
+    def __init__(self):
+        self.chosen_labels = set()
+
+    def choose_label(self, labels_and_confidence):
+        labels_only = [tup[0] for tup in labels_and_confidence]
+        for label in labels_only:
+            if label in self.chosen_labels:
+                continue
+            else:
+                self.chosen_labels.add(label)
+                return label
+        # last resort, all labels are there, we choose the 1st one
+        return labels_only[0]
 
 
 if __name__ == "__main__":

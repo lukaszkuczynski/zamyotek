@@ -190,7 +190,6 @@ class BrainNode(MqttNode):
                                 # when distance is small then we should stop and start telling what's that
                                 if distance < OBJECT_TO_TELL_DISTANCE:
                                     move_dir = "stop"
-                                    self.change_mode(BrainMode.TELLME)
                                 elif distance < OBJECT_TO_TELL_DISTANCE + 10:
                                     self.speed = DEFAULT_AHEAD_SPEED - 30
                                 elif distance < OBJECT_TO_TELL_DISTANCE + 20:
@@ -209,6 +208,7 @@ class BrainNode(MqttNode):
                                 self.send_to("close_gate", TOPIC_SERVO)
                             elif "ahead" in move_dir:
                                 self.send_to("open_gate", TOPIC_SERVO)
+                        self.change_mode(BrainMode.TELLME)
                         self.last_move_dir = move_dir
 
                 self.logger.debug(
@@ -226,6 +226,11 @@ class BrainNode(MqttNode):
                     self.send(move_dir)
                     self.last_move_dir = move_dir
                     self.send_to("close_gate", TOPIC_SERVO)
+                avg_distance = self.distance_stack.avg_distance()
+                if avg_distance is not None:
+                    # when distance is small then we should stop and start telling what's that
+                    if avg_distance < OBJECT_TO_TELL_DISTANCE:
+                        self.change_mode(BrainMode.TELLME)
 
 
 brain = BrainNode()
