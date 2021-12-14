@@ -6,6 +6,12 @@ import logging
 import os
 
 
+def get_client():
+    client = mqtt.Client(hostname="localhost", port=1883)
+    client.connect()
+    return client
+
+
 class MqttNode:
     def __init__(
         self,

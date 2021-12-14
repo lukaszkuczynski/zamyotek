@@ -1,5 +1,5 @@
 import logging
-from mqtt_node import MqttNode, MqttToSerialNode
+from mqtt_node import MqttNode, MqttToSerialNode, get_client
 import json
 import math
 from datetime import datetime
@@ -53,7 +53,7 @@ class BrainNode(MqttNode):
         self.last_turning_time = datetime.now()
         self.motor_stack = AnyObjectStack(ms_ttl=2000)
         self.speed = DEFAULT_AHEAD_SPEED
-        steps = [
+        few_steps = [
             {
                 "name": "look_down",
                 "type": "send_mqtt",
@@ -61,6 +61,21 @@ class BrainNode(MqttNode):
                 "msg": "godown",
             },
             {"name": "servo_travel_down", "waiting_time": 3, "type": "sleep"},
+            {
+                "name": "look_up",
+                "type": "send_mqtt",
+                "topic": TOPIC_CMD_SERVO_HEAD,
+                "msg": "goup",
+            },
+        ]
+        steps = [
+            {
+                "name": "look_down",
+                "type": "send_mqtt",
+                "topic": TOPIC_CMD_SERVO_HEAD,
+                "msg": "godown",
+            },
+            {"name": "servo_travel_down", "waiting_time": 2, "type": "sleep"},
             {
                 "name": "take_photo",
                 "type": "send_mqtt",
@@ -80,7 +95,7 @@ class BrainNode(MqttNode):
                 "topic": TOPIC_CMD_SERVO_HEAD,
                 "msg": "goup",
             },
-            {"name": "servo_travel_up", "waiting_time": 5, "type": "sleep"},
+            {"name": "servo_travel_up", "waiting_time": 2, "type": "sleep"},
             {
                 "name": "speak_msg",
                 "read_from_storage_key": "object_class",
@@ -99,7 +114,10 @@ class BrainNode(MqttNode):
                 "type": "sleep",
             },
         ]
-        self.tell_me_scenario = ScenarioStateMachine("tell_me_scenario", steps, self)
+        scenario_node = MqttNode("scenario", "", "")
+        self.tell_me_scenario = ScenarioStateMachine(
+            "tell_me_scenario", steps, scenario_node
+        )
         # this should be follow
         super().__init__(
             "brain",
@@ -150,7 +168,8 @@ class BrainNode(MqttNode):
                 self.logger.info(
                     "Scenario in brain finished - state %s!", process_result
                 )
-                self.change_mode(BrainMode.FOLLOW)
+                # self.change_mode(BrainMode.FOLLOW)
+                self.change_mode(BrainMode.IDLE)
             elif process_result == ScenarioResult.TIMEOUT:
                 self.logger.warn("Timeout. Tellme scenario failed :(")
                 self.change_mode(BrainMode.FOLLOW)
