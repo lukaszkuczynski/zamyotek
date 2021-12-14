@@ -152,6 +152,7 @@ class SleepStep(Step):
         self.logger.debug("Step name %s", self.name)
         self.logger.info("Executing sleep for %s seconds.", self.waiting_time)
         sleep(self.waiting_time)
+        self.logger.debug("Waiting finished")
         return True
 
 
@@ -159,22 +160,22 @@ class MqttSendStep(Step):
     def __init__(self, cfg, logger, mqtt_node) -> None:
         super().__init__(cfg, logger)
         self.topic_to = cfg["topic"]
-        self.msg = cfg.get("msg")
+        self.msg_from_config = cfg.get("msg")
         self.mqtt_node = mqtt_node
 
     # complicated logic is here, msg is resolved in the following order:
+    # 0. msg written as const in config of step
     # 1. msg from storage (inside of storage dict)
     # 2. msg from the previous operation (in arg of function)
-    # 3. msg written as const in config of step
     def __resolve_msg(self, msg_arg, storage):
-        if self.read_from_storage_key:
+        if self.msg_from_config:
+            self.logger.debug("reading from config arg")
+            return self.msg_from_config
+        elif self.read_from_storage_key:
             self.logger.debug("reading from storage")
             return storage[self.read_from_storage_key]
-        elif msg_arg is None:
-            self.logger.debug("reading from previous op")
-            return self.msg
         else:
-            self.logger.debug("reading from arg")
+            self.logger.debug("reading from previous op")
             return msg_arg
 
     def execute(self, msg=None, storage=None):
@@ -182,6 +183,8 @@ class MqttSendStep(Step):
         msg = self.__resolve_msg(msg, storage)
         self.logger.info("Will send msg to '%s' topic" % self.topic_to)
         self.mqtt_node.send_to(topic=self.topic_to, message=msg)
+        sleep(0.05)
+        self.logger.debug("Message from Mqtt send Step sent.")
         return True
 
 

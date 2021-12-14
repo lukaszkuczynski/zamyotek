@@ -54,13 +54,13 @@ class BrainNode(MqttNode):
         self.motor_stack = AnyObjectStack(ms_ttl=2000)
         self.speed = DEFAULT_AHEAD_SPEED
         steps = [
-            # {
-            #     "name": "look_down",
-            #     "type": "send_mqtt",
-            #     "topic": TOPIC_CMD_SERVO_HEAD,
-            #     "msg": "godown",
-            # },
-            # {"name": "servo_travel_down", "waiting_time": 1, "type": "sleep"},
+            {
+                "name": "look_down",
+                "type": "send_mqtt",
+                "topic": TOPIC_CMD_SERVO_HEAD,
+                "msg": "godown",
+            },
+            {"name": "servo_travel_down", "waiting_time": 3, "type": "sleep"},
             {
                 "name": "take_photo",
                 "type": "send_mqtt",
@@ -72,15 +72,15 @@ class BrainNode(MqttNode):
                 "type": "receive_msg",
                 "topic": TOPIC_NOTIFY_OBJECT_RECOGNIZED,
                 "save_to_storage_key": "object_class",
-                "timeout": 10,
+                "timeout": 4,
             },
-            # {
-            #     "name": "look_up",
-            #     "type": "send_mqtt",
-            #     "topic": TOPIC_CMD_SERVO_HEAD,
-            #     "msg": "goup",
-            # },
-            # {"name": "servo_travel_up", "waiting_time": 2, "type": "sleep"},
+            {
+                "name": "look_up",
+                "type": "send_mqtt",
+                "topic": TOPIC_CMD_SERVO_HEAD,
+                "msg": "goup",
+            },
+            {"name": "servo_travel_up", "waiting_time": 5, "type": "sleep"},
             {
                 "name": "speak_msg",
                 "read_from_storage_key": "object_class",
@@ -190,6 +190,7 @@ class BrainNode(MqttNode):
                                 # when distance is small then we should stop and start telling what's that
                                 if distance < OBJECT_TO_TELL_DISTANCE:
                                     move_dir = "stop"
+                                    self.change_mode(BrainMode.TELLME)
                                 elif distance < OBJECT_TO_TELL_DISTANCE + 10:
                                     self.speed = DEFAULT_AHEAD_SPEED - 30
                                 elif distance < OBJECT_TO_TELL_DISTANCE + 20:
@@ -202,13 +203,8 @@ class BrainNode(MqttNode):
                                     self.speed = DEFAULT_AHEAD_SPEED
 
                         self.motor_stack.push(move_dir)
-                        self.send(move_dir)
                         if move_dir != self.last_move_dir:
-                            if move_dir == "stop":
-                                self.send_to("close_gate", TOPIC_SERVO)
-                            elif "ahead" in move_dir:
-                                self.send_to("open_gate", TOPIC_SERVO)
-                        self.change_mode(BrainMode.TELLME)
+                            self.send(move_dir)
                         self.last_move_dir = move_dir
 
                 self.logger.debug(
@@ -225,12 +221,12 @@ class BrainNode(MqttNode):
                     move_dir = "stop"
                     self.send(move_dir)
                     self.last_move_dir = move_dir
-                    self.send_to("close_gate", TOPIC_SERVO)
                 avg_distance = self.distance_stack.avg_distance()
                 if avg_distance is not None:
                     # when distance is small then we should stop and start telling what's that
-                    if avg_distance < OBJECT_TO_TELL_DISTANCE:
-                        self.change_mode(BrainMode.TELLME)
+                    if self.brain_mode == BrainMode.FOLLOW:
+                        if avg_distance < OBJECT_TO_TELL_DISTANCE:
+                            self.change_mode(BrainMode.TELLME)
 
 
 brain = BrainNode()
