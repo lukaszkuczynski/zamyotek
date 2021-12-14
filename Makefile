@@ -67,3 +67,8 @@ recognition:
 
 photographer:
 	python3 async_photographer_node.py
+
+cleanandpull:
+	git clean -fd
+	git reset --hard
+	git pull
