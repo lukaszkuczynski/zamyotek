@@ -6,14 +6,14 @@ int rightServoPin = 26;
 const int freq = 50;
 const int resolution = 8;
 
-const int leftServoOpened = 100;
-const int leftServoClosed = 20;
+const int leftServoOpened = 110;
+const int leftServoClosed = 30;
 
 
 const String DEFAULT_DEGREE = "0";
 
-const int steps = 7;
-const int stepDelay = 100;
+const int steps = 10;
+const int stepDelay = 150;
 
 Servo leftServo;
 Servo rightServo;
@@ -24,7 +24,7 @@ void setup(){
   rightServo.setPeriodHertz(50);    // standard 50 hz servo
   rightServo.attach(rightServoPin, 500, 2400); 
   Serial.begin(115200);
-  openGate();
+  closeGate();
 }
 
 void openGate() {

@@ -10,7 +10,9 @@ from enum import Enum
 from scenario_state_machine import ScenarioResult, ScenarioStateMachine
 
 SIDE_AREA_PROPORTION = 0.3335
-TOTAL_WID = 1280
+# TOTAL_WID = 128   0
+TOTAL_WID = 640
+
 OBJECT_TO_TELL_DISTANCE = 20
 
 TOPIC_SENSOR_DISTANCE = "/sensor/distance"
@@ -146,6 +148,7 @@ class BrainNode(MqttNode):
         self.logger.info("Setting Brain to mode %s" % brain_mode)
         self.brain_mode = brain_mode
         if self.brain_mode == BrainMode.TELLME:
+            self.send("stop")
             self.tell_me_scenario.start()
 
     def on_message(self, client, userdata, msg):
@@ -168,8 +171,8 @@ class BrainNode(MqttNode):
                 self.logger.info(
                     "Scenario in brain finished - state %s!", process_result
                 )
-                # self.change_mode(BrainMode.FOLLOW)
-                self.change_mode(BrainMode.IDLE)
+                self.change_mode(BrainMode.FOLLOW)
+                # self.change_mode(BrainMode.IDLE)
             elif process_result == ScenarioResult.TIMEOUT:
                 self.logger.warn("Timeout. Tellme scenario failed :(")
                 self.change_mode(BrainMode.FOLLOW)

@@ -9,7 +9,8 @@ TOPIC_NOTIFY_OBJECT_RECOGNIZED = "/notify/object_recognized"
 
 class RekognitionNode(MqttNode):
     def __init__(self):
-        self.label_strategy = LabelChoiceRememberingStrategy()
+        # self.label_strategy = LabelChoiceRememberingStramaktegy()
+        self.label_strategy = LabelChoiceStrategyFirst()
         super().__init__(
             "rekognition", TOPIC_NOTIFY_OBJECT_RECOGNIZED, TOPIC_NOTIFY_PHOTO_TAKEN
         )
@@ -62,7 +63,10 @@ class LabelChoiceRememberingStrategy(LabelChoiceStrategy):
                 self.chosen_labels.add(label)
                 return label
         # last resort, all labels are there, we choose the 1st one
-        return labels_only[0]
+        if len(labels_only) > 0:
+            return labels_only[0]
+        else:
+            return "Nothing"
 
 
 if __name__ == "__main__":
