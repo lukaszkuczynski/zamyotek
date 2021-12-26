@@ -9,7 +9,7 @@ TOPIC_NOTIFY_OBJECT_RECOGNIZED = "/notify/object_recognized"
 
 class RekognitionNode(MqttNode):
     def __init__(self):
-        # self.label_strategy = LabelChoiceRememberingStramaktegy()
+        # self.label_strategy = LabelChoiceRememberingStrategy()
         self.label_strategy = LabelChoiceStrategyFirst()
         super().__init__(
             "rekognition", TOPIC_NOTIFY_OBJECT_RECOGNIZED, TOPIC_NOTIFY_PHOTO_TAKEN
@@ -19,6 +19,7 @@ class RekognitionNode(MqttNode):
         client = boto3.client("rekognition")
         with open(picture_path, "rb") as image:
             response = client.detect_labels(Image={"Bytes": image.read()})
+            self.logger.debug(response)
         labels_and_confidence = [
             (label["Name"], label["Confidence"]) for label in response["Labels"]
         ]

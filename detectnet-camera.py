@@ -157,7 +157,7 @@ camera_node = CameraNode(opt)
 while True:
     # capture the next image
     img = input.Capture()
-
+    camera_node.on_new_picture(img)
     # detect objects in the image (with overlay)
     detections = net.Detect(img, overlay=opt.overlay)
 
@@ -170,7 +170,7 @@ while True:
         camera_node.logger.info(
             "detected {:d} objects in image".format(len(detections))
         )
-    camera_node.on_new_picture(img)
+
     for detection in detections:
         camera_node.logger.debug(detection)
         camera_node.send_center(

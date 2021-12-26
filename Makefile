@@ -73,3 +73,9 @@ cleanandpull:
 	git clean -fd
 	git reset --hard
 	git pull
+
+download_images:
+	rsync -av jetson:/home/lukjestson/Pictures/zamyotek ~/Pictures/zamyotek
+
+dmesg:
+	dmesg | grep tty | grep attached 
