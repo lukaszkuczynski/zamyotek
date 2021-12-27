@@ -2,9 +2,9 @@
 Zamyotek is Jetson-powered object detection robot, linked with Alexa and created in a decoupled manner. The idea of decoupling came from ROS that I haven't used as I wanted to have a purely Python solution.
 
 ## Demo
-It moves, follows me and recognizes objects (somehow, we're still working to make it more reliable).
+It moves, follows me and recognizes objects (somehow, we're still working to make it more reliable). Click the image below to see YT video...
 
-[![IMAGE ALT TEXT](./pics/zamyotek_explores.png)](http://www.youtube.com/watch?v=LvrNewLIw1k "Video Title")
+[![IMAGE ALT TEXT](./pics/zamyotek_explores.png)](http://www.youtube.com/watch?v=LvrNewLIw1k "Zamyotek 1st photoshoot")
 
 
 ## Initial idea and change
