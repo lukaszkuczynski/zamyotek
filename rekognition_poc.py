@@ -12,7 +12,7 @@ def detect_labels_local_file(photo):
 
 
 def main():
-    photo = "fritzing_bb.png"
+    photo = "photo.jpg"
     label_count = detect_labels_local_file(photo)
     print("Labels detected: " + str(label_count))
 

@@ -22,7 +22,7 @@ class SpeakNode(MqttNode):
             TOPIC_CMD_SPEAK,
             autostart_listening=False,
         )
-        session = Session(profile_name="zamyotek")
+        session = Session(profile_name="default")
         self.polly = session.client("polly")
         self.start_listening()
 
@@ -56,7 +56,8 @@ class SpeakNode(MqttNode):
             else:
                 # The following works on macOS and Linux. (Darwin = mac, xdg-open = linux).
                 opener = "open" if sys.platform == "darwin" else "xdg-open"
-                subprocess.call([opener, output])
+#                subprocess.call([opener, output])
+                subprocess.call(["aplay", "--device","sysdefault:CARD=Device", output])
 
     def on_message(self, client, userdata, msg):
         speak_msg = json.loads(msg.payload)

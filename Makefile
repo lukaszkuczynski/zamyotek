@@ -25,15 +25,15 @@ MODEL_NAME=ssd-mobilenet-v2
 #MODEL_NAME=ssd-inception-v2
 camera:
 	echo $(MODEL_NAME)
-	python3 ./detectnet-camera.py  --input-width=640 --input-height=480 --network=$(MODEL_NAME) --saved_pictures_folder=/home/lukjestson/Pictures/zamyotek
+	python3 ./detectnet-camera.py  --input-width=640 --input-height=480 --network=$(MODEL_NAME) --saved_pictures_folder=/home/lukjetson/Pictures/zamyotek
 
 
 brain:
 	python3 ./brain.py
 
-ESP32_PORT_SENSORS != dmesg | grep tty | grep attached | grep "usb 1-3.2.1" | tail -n 1 | sed -En "s/.*(tty.*)/\1/p"
-ESP32_PORT_MOTORS != dmesg | grep tty | grep attached | grep "usb 1-3.2.2" | tail -n 1 | sed -En "s/.*(tty.*)/\1/p"
-ESP32_PORT_SERVOS != dmesg | grep tty | grep attached | grep "usb 1-3.2.3" | tail -n 1 | sed -En "s/.*(tty.*)/\1/p"
+ESP32_PORT_SENSORS != dmesg | grep tty | grep attached | grep "usb 1-2.1" | tail -n 1 | sed -En "s/.*(tty.*)/\1/p"
+ESP32_PORT_MOTORS != dmesg | grep tty | grep attached | grep "usb 1-2.2" | tail -n 1 | sed -En "s/.*(tty.*)/\1/p"
+ESP32_PORT_SERVOS != dmesg | grep tty | grep attached | grep "usb 1-2.3" | tail -n 1 | sed -En "s/.*(tty.*)/\1/p"
 
 
 motor:
@@ -64,7 +64,7 @@ reactapp:
 	cd react-mqtt-test && HOST=0.0.0.0 PORT=3000 ./node_modules/.bin/react-scripts start
 
 recognition:
-	. venv/bin/activate && python3 rekognition_node.py
+	python3 rekognition_node.py
 
 photographer:
 	python3 async_photographer_node.py

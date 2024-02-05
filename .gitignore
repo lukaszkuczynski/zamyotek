@@ -3,3 +3,4 @@ venv
 __pycache__
 camera_change_settings
 *.mp3
+.venv
