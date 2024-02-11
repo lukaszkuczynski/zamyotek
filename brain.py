@@ -1,12 +1,14 @@
-import logging
-from mqtt_node import MqttNode, MqttToSerialNode, get_client
 import json
+import logging
 import math
 from datetime import datetime
-from common_objects import AnyObjectStack, DistanceStack
-import yaml
 from enum import Enum
+from time import sleep
 
+import yaml
+
+from common_objects import AnyObjectStack, DistanceStack
+from mqtt_node import MqttNode, MqttToSerialNode, get_client
 from scenario_state_machine import ScenarioResult, ScenarioStateMachine
 
 SIDE_AREA_PROPORTION = 0.3335
@@ -18,7 +20,6 @@ OBJECT_TO_TELL_DISTANCE = 20
 TOPIC_SENSOR_DISTANCE = "/sensor/distance"
 TOPIC_CAMERA = "camera_out"
 TOPIC_MOTOR = "/cmd/motor_move"
-TOPIC_SERVO = "/cmd/servo_gate"
 TOPIC_MODE_CHANGER = "/cmd/brain_mode"
 TOPIC_RELOAD_SETTINGS = "/cmd/reload_settings"
 TOPIC_CMD_SERVO_HEAD = "/cmd/servo/head_position"
@@ -31,17 +32,25 @@ TOPIC_NOTIFY_SPOKEN = "/notify/spoken"
 TURNING_TIME_NOOP = 1000
 TOO_CLOSE_OBJECT_WIDTH = 800
 # AHEAD_COMMAND = "ahead,80"
-DEFAULT_AHEAD_SPEED = 70
+DEFAULT_AHEAD_SPEED = 120
 
+MOTOR_STACK_TTL=1000
+DISTANCE_STACK_TTL=500
 
 class BrainMode(Enum):
     IDLE = 0
     FOLLOW = 1
     TELLME = 2
 
+last_executions = {
+    BrainMode.IDLE: datetime.now(),
+    BrainMode.FOLLOW: datetime.now(),
+    BrainMode.TELLME: datetime.now(),
+}
 
 class BrainNode(MqttNode):
     def __init__(self):
+        self.brain_mode = BrainMode.IDLE
         self.last_move_dir = ""
         center_left = math.floor(0 + (TOTAL_WID * SIDE_AREA_PROPORTION))
         center_right = math.floor(TOTAL_WID - (TOTAL_WID * SIDE_AREA_PROPORTION))
@@ -50,10 +59,10 @@ class BrainNode(MqttNode):
             [center_left + 1, center_right, "central"],
             [center_right + 1, TOTAL_WID, "right"],
         ]
-        self.distance_stack = DistanceStack(ms_ttl=500, max_val=1000)
+        self.distance_stack = DistanceStack(ms_ttl=DISTANCE_STACK_TTL, max_val=1000)
         self.turning_time_noop = TURNING_TIME_NOOP
         self.last_turning_time = datetime.now()
-        self.motor_stack = AnyObjectStack(ms_ttl=2000)
+        self.motor_stack = AnyObjectStack(ms_ttl=MOTOR_STACK_TTL)
         self.speed = DEFAULT_AHEAD_SPEED
         few_steps = [
             {
@@ -72,12 +81,30 @@ class BrainNode(MqttNode):
         ]
         steps = [
             {
+                "name": "stop",
+                "type": "send_mqtt",
+                "topic": TOPIC_MOTOR,
+                "msg": "stop",
+            }, 
+            {
+                "name": "look_down",
+                "type": "send_mqtt",
+                "topic": TOPIC_CMD_SERVO_HEAD,
+                "msg": "setColor,red",
+            },
+            {
                 "name": "look_down",
                 "type": "send_mqtt",
                 "topic": TOPIC_CMD_SERVO_HEAD,
                 "msg": "godown",
             },
             {"name": "servo_travel_down", "waiting_time": 2, "type": "sleep"},
+            {
+                "name": "look_down",
+                "type": "send_mqtt",
+                "topic": TOPIC_CMD_SERVO_HEAD,
+                "msg": "setColor,blue",
+            },
             {
                 "name": "take_photo",
                 "type": "send_mqtt",
@@ -89,7 +116,13 @@ class BrainNode(MqttNode):
                 "type": "receive_msg",
                 "topic": TOPIC_NOTIFY_OBJECT_RECOGNIZED,
                 "save_to_storage_key": "object_class",
-                "timeout": 4,
+                "timeout": 15,
+            },
+            {
+                "name": "look_down",
+                "type": "send_mqtt",
+                "topic": TOPIC_CMD_SERVO_HEAD,
+                "msg": "setColor,red"
             },
             {
                 "name": "look_up",
@@ -108,7 +141,7 @@ class BrainNode(MqttNode):
                 "name": "wait_for_speech",
                 "type": "receive_msg",
                 "topic": TOPIC_NOTIFY_SPOKEN,
-                "timeout": 5,
+                "timeout": 10,
             },
             {
                 "name": "sleep_idle_time_after_scenario",
@@ -139,26 +172,35 @@ class BrainNode(MqttNode):
 
     def reload_settings(self):
         self.logger.info("Re-loading settings")
-        with open("config.yaml", "r") as stream:
+        with open("config.yaml", "r", encoding='utf8') as stream:
             config = yaml.safe_load(stream)
             self.search_classes = config["camera"]["classes_search"]
             self.return_classes = config["camera"]["classes_return"]
 
     def change_mode(self, brain_mode):
-        self.logger.info("Setting Brain to mode %s" % brain_mode)
+        mode_changed = self.brain_mode != brain_mode
+        self.logger.info("Setting Brain to mode %s", brain_mode)
         self.brain_mode = brain_mode
-        if self.brain_mode == BrainMode.TELLME:
-            self.send("stop")
-            self.tell_me_scenario.start()
+        if mode_changed:
+            if self.brain_mode == BrainMode.TELLME:
+                self.send("stop")
+                self.tell_me_scenario.start()
+            color_map = {
+                BrainMode.FOLLOW : 'green',
+                BrainMode.TELLME: 'red',
+                BrainMode.IDLE: 'black'
+            }
+            self.send_to(f'setColor,{color_map.get(brain_mode)}', TOPIC_CMD_SERVO_HEAD)
+        
 
     def on_message(self, client, userdata, msg):
         if msg.topic == TOPIC_MODE_CHANGER:
             mode_msg = json.loads(msg.payload)
             self.logger.info("Mode changed to %s", mode_msg["mode"])
             if mode_msg["mode"] == "follow":
-                self.brain_mode = BrainMode.FOLLOW
+                self.change_mode(BrainMode.FOLLOW)
             elif mode_msg["mode"] == "tellme":
-                self.brain_mode = BrainMode.TELLME
+                self.change_mode(BrainMode.TELLME)
         if self.brain_mode == BrainMode.IDLE:
             self.logger.debug(
                 "Brain idle. I won't do anything with msg on topic %s", msg.topic
@@ -174,7 +216,7 @@ class BrainNode(MqttNode):
                 self.change_mode(BrainMode.FOLLOW)
                 # self.change_mode(BrainMode.IDLE)
             elif process_result == ScenarioResult.TIMEOUT:
-                self.logger.warn("Timeout. Tellme scenario failed :(")
+                self.logger.warning("Timeout. Tellme scenario failed :(")
                 self.change_mode(BrainMode.FOLLOW)
         elif self.brain_mode == BrainMode.FOLLOW:
             if msg.topic == TOPIC_RELOAD_SETTINGS:

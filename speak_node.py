@@ -1,23 +1,26 @@
-from logging import log
-from mqtt_node import MqttNode
 import json
-from boto3 import Session
-from botocore.exceptions import BotoCoreError, ClientError
-from contextlib import closing
 import os
-import sys
 import subprocess
+import sys
+import wave
+from contextlib import closing
+from logging import log
 from tempfile import gettempdir
 
+from boto3 import Session
+from botocore.exceptions import BotoCoreError, ClientError
+
+from mqtt_node import MqttNode
 
 TOPIC_CMD_SPEAK = "/cmd/speak"
 TOPIC_NOTIFY_SPOKEN = "/notify/spoken"
 
+DEBUG_MODE_NO_AWS = False
 
 class SpeakNode(MqttNode):
     def __init__(self):
         super().__init__(
-            "rekognition",
+            "speak",
             TOPIC_NOTIFY_SPOKEN,
             TOPIC_CMD_SPEAK,
             autostart_listening=False,
@@ -28,9 +31,13 @@ class SpeakNode(MqttNode):
 
     def __call_polly(self, text):
         response = self.polly.synthesize_speech(
-            Text=text, OutputFormat="mp3", VoiceId="Joanna"
+            Text=text, OutputFormat="pcm", VoiceId="Matthew"
         )
         return response
+    
+    def __play_wave_at_path(self, wav_path):
+        subprocess.call(["aplay", "--device","sysdefault:CARD=Device", wav_path])
+
 
     def __play_using_temp_file(self, polly_response):
         if "AudioStream" in polly_response:
@@ -38,13 +45,14 @@ class SpeakNode(MqttNode):
             # number of parallel connections. Here we are using contextlib.closing to
             # ensure the close method of the stream object will be called automatically
             # at the end of the with statement's scope.
-            path_to_save_temp_file = os.path.join(gettempdir(), "zamyotek_speech.mp3")
+            path_to_save_temp_file = os.path.join(gettempdir(), "zamyotek_speech.wav")
             with closing(polly_response["AudioStream"]) as stream:
                 output = path_to_save_temp_file
                 try:
                     # Open a file for writing the output as a binary stream
-                    with open(output, "wb") as file:
-                        file.write(stream.read())
+                    with wave.open(output, 'wb') as wav_file:
+                        wav_file.setparams((1, 2, 16000, 0, 'NONE', 'NONE'))
+                        wav_file.writeframes(stream.read())
                 except IOError as error:
                     self.logger.error(error)
                     # Could not write to file, exit gracefully
@@ -57,16 +65,22 @@ class SpeakNode(MqttNode):
                 # The following works on macOS and Linux. (Darwin = mac, xdg-open = linux).
                 opener = "open" if sys.platform == "darwin" else "xdg-open"
 #                subprocess.call([opener, output])
-                subprocess.call(["aplay", "--device","sysdefault:CARD=Device", output])
+                self.__play_wave_at_path(output)
 
     def on_message(self, client, userdata, msg):
         speak_msg = json.loads(msg.payload)
-        object_class = speak_msg["msg"]
-        text_to_speak = "I can see %s" % object_class
-        response = self.__call_polly(text_to_speak)
-        self.logger.info(response)
-        self.logger.info("I will speak... %s", speak_msg)
-        self.__play_using_temp_file(response)
+        message_from_openai = speak_msg["msg"]
+        # text_to_speak = "I can see %s" % object_class
+        text_to_speak = message_from_openai
+        if DEBUG_MODE_NO_AWS:
+            # wav_path = os.path.join(gettempdir(), "zamyotek_speech.wav")
+            wav_path = "/home/lukjetson/prj/jetson-voice/data/audio/command_yes.wav"
+            self.__play_wave_at_path(wav_path)
+        else:
+            response = self.__call_polly(text_to_speak)
+            self.logger.info(response)
+            self.logger.info("I will speak... %s", speak_msg)
+            self.__play_using_temp_file(response)
         self.send("spoken")
 
 

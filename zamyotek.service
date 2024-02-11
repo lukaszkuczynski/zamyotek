@@ -1,0 +1,9 @@
+[Unit]
+Description=zamyotek service
+
+[Service]
+ExecStart=/home/lukjetson/prj/zamyotek/zamyotek_startup.sh
+User=lukjetson
+
+[Install]
+WantedBy=multi-user.target

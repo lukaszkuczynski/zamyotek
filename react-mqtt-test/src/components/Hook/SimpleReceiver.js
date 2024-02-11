@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
 import { Card } from 'antd';
+import React, { useEffect, useState } from 'react';
 
 const SimpleReceiver = ({ payload }) => {
   const [lastMessage, setLastMessage] = useState();
@@ -14,7 +14,7 @@ const SimpleReceiver = ({ payload }) => {
     <Card
       title="Last Msg Receiver"
     >
-      <h1>{lastMessage}</h1>
+      <p>{lastMessage}</p>
     </Card>
   );
 }

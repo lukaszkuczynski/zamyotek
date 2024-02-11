@@ -1,10 +1,14 @@
-from mqtt_node import MqttNode
 import json
-import boto3
 from abc import abstractclassmethod
+
+import boto3
+
+from mqtt_node import MqttNode
 
 TOPIC_NOTIFY_PHOTO_TAKEN = "/notify/photo"
 TOPIC_NOTIFY_OBJECT_RECOGNIZED = "/notify/object_recognized"
+
+DEBUG_MODE_NO_AWS = True
 
 
 class RekognitionNode(MqttNode):
@@ -30,13 +34,16 @@ class RekognitionNode(MqttNode):
         camera_photo_msg = json.loads(msg.payload)
         picture_path = camera_photo_msg["msg"]
         self.logger.info("Received picture on %s", picture_path)
-        labels_and_confidence = self.recognize_from_path(picture_path)
-        object_class = self.label_strategy.choose_label(labels_and_confidence)
-        self.logger.info(
-            "Choosing label - (strategy %s) : '%s'",
-            type(self.label_strategy),
-            object_class,
-        )
+        if DEBUG_MODE_NO_AWS:
+            object_class = "DEBUG MODE: no class recognized"
+        else:
+            labels_and_confidence = self.recognize_from_path(picture_path)
+            object_class = self.label_strategy.choose_label(labels_and_confidence)
+            self.logger.info(
+                "Choosing label - (strategy %s) : '%s'",
+                type(self.label_strategy),
+                object_class,
+            )
         self.send(object_class)
 
 

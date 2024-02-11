@@ -21,21 +21,19 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
-from aws_listener_node import CONFIG_PATH
-import jetson.inference
-import jetson.utils
-
 import argparse
-import sys
-
-from mqtt_node import MqttNode
-from label_identifier import LabelIdentifier
-
 import os
 import shutil
+import sys
+from datetime import datetime
+
+import jetson.inference
+import jetson.utils
 import yaml
 
-from datetime import datetime
+from aws_listener_node import CONFIG_PATH
+from label_identifier import LabelIdentifier
+from mqtt_node import MqttNode
 
 # parse the command line
 parser = argparse.ArgumentParser(
@@ -69,11 +67,11 @@ parser.add_argument(
     "--threshold", type=float, default=0.5, help="minimum detection threshold to use"
 )
 parser.add_argument("--saved_pictures_folder", help="Folder to save taken pictures")
+parser.add_argument("--async_flag_filepath", help="Where to store file for async phographer")
 
 is_headless = ["--headless"] if sys.argv[0].find("console.py") != -1 else [""]
 
 CAMERA_RELOAD_FILE = "camera_change_settings"
-CAMERA_TAKE_PICTURE_FILE = "camera_take_picture"
 CONFIG_PATH = "config.yaml"
 TOPIC_NOTIFY_PHOTO_TAKEN = "/notify/photo"
 
@@ -101,12 +99,13 @@ class CameraNode(MqttNode):
         self.identifier = LabelIdentifier(filename)
         super().__init__("camera", "camera_out", "")
         self.pics_folder = args.saved_pictures_folder
+        self.async_flag_filepath = args.async_flag_filepath
         self.reload_settings()
 
     def on_new_picture(self, img):
-        if os.path.exists(CAMERA_TAKE_PICTURE_FILE):
+        if os.path.exists(self.async_flag_filepath):
             self.logger.info("New picture event.")
-            os.remove(CAMERA_TAKE_PICTURE_FILE)
+            os.remove(self.async_flag_filepath)
             now = datetime.now()  # current date and time
             date_time = now.strftime("%Y_%m_%d_%H_%M_%S")
             filename_pic = f"{date_time}.jpg"
@@ -157,6 +156,8 @@ camera_node = CameraNode(opt)
 while True:
     # capture the next image
     img = input.Capture()
+    if img is None:
+        continue
     camera_node.on_new_picture(img)
     # detect objects in the image (with overlay)
     detections = net.Detect(img, overlay=opt.overlay)

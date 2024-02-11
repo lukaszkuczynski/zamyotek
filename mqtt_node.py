@@ -1,9 +1,10 @@
-from time import sleep
-import paho.mqtt.client as mqtt
 import json
-import serial
 import logging
 import os
+from time import sleep
+
+import paho.mqtt.client as mqtt
+import serial
 
 
 def get_client():

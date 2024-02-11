@@ -1,12 +1,12 @@
+import { Button, Card, Col, Form, Input, Row } from 'antd';
 import React from 'react';
-import { Card, Button, Form, Input, Row, Col } from 'antd';
 
 const Connection = ({ connect, disconnect, connectBtn }) => {
   const [form] = Form.useForm();
   const record = {
-    host: '192.168.100.10',
-    clientId: `mqttjs_ + ${Math.random().toString(16).substr(2, 8)}`,
-    port: 8083,
+    host: '192.168.100.152',
+    clientId: `mqttjs_zamyotek_react_${Math.random().toString(16).substr(2, 8)}`,
+    port: 8080,
   };
   const onFinish = (values) => {
     const { host, clientId, port, username, password } = values;
