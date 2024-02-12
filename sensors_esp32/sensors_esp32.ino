@@ -1,7 +1,7 @@
 #include <ArduinoJson.h>
 
 
-#define echoPin 5 // Echo Pin
+#define echoPin 18 // Echo Pin
 #define trigPin 2 // Trigger Pin
  
 long duration, distance; // Duration used to calculate distance

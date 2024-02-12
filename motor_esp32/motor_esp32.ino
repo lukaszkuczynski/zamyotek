@@ -4,8 +4,8 @@ const int leftB = 27;
 const int leftF = 26; 
 const int leftEnable = 25; 
 
-const int rightB = 33;
-const int rightF = 32; 
+const int rightB = 32;
+const int rightF = 33; 
 const int rightEnable = 13; 
 
 //Servo leftServo;
@@ -26,7 +26,7 @@ const int servoClosed = 30;
 
 const int resolution = 8;
 
-#define TURNING_TIME 250
+#define TURNING_TIME "250"
 #define STOP_TIME 100      
 
 #define DEFAULT_SPEED "120"
@@ -78,20 +78,29 @@ void loop(){
     int i1 = full_command.indexOf(',');
     int i2 = full_command.indexOf(',', i1+1);
     String cmd_arg = DEFAULT_SPEED;
+    String cmd_arg2 = TURNING_TIME;
     String command = full_command;
     if (i1 > 0) {
       command= full_command.substring(0, i1);
-      cmd_arg = full_command.substring(i1+1);
+      if (i2 > 0) {
+        cmd_arg = full_command.substring(i1+1, i2);
+        cmd_arg2 =  full_command.substring(i2+1);
+
+      } else {
+        cmd_arg = full_command.substring(i1+1);
+      }
     }
     int turningSpeed = cmd_arg.toInt();
-    Serial.printf("Command received %s \n", command);
+    int turningTime = cmd_arg2.toInt();
+
+    Serial.printf("Command received %s, arg1=%s, arg2=%s \n", command, cmd_arg, cmd_arg2);
     if (command.equals("left")) {
       allStop();
       digitalWrite(leftB, HIGH);
       digitalWrite(rightF, HIGH);
       ledcWrite(leftMotor, turningSpeed);
       ledcWrite(rightMotor, turningSpeed);
-      delay(TURNING_TIME);
+      delay(turningTime);
       allStop();
       delay(STOP_TIME);
     } else if (command.equals("right")) {
@@ -100,7 +109,7 @@ void loop(){
       digitalWrite(rightB, HIGH);
       ledcWrite(leftMotor, turningSpeed);
       ledcWrite(rightMotor, turningSpeed);
-      delay(TURNING_TIME);
+      delay(turningTime);
       allStop();
       delay(STOP_TIME);
     } else if (command.equals("stop")) {
