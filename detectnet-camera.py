@@ -112,7 +112,7 @@ class CameraNode(MqttNode):
             full_pic_path = os.path.join(self.pics_folder, filename_pic)
             jetson.utils.saveImage(full_pic_path, img)
             photo_msg = full_pic_path
-            self.logger.debug("sending")
+            self.logger.info(f"Sending info on photo taken {full_pic_path}")
             self.send_to(photo_msg, TOPIC_NOTIFY_PHOTO_TAKEN)
 
     def send_center(self, center_boundaries):
@@ -122,7 +122,7 @@ class CameraNode(MqttNode):
         if center_boundaries["class_id"] in self.classes_to_check:
             label = self.identifier.label_for_number(int(center_boundaries["class_id"]))
             center_boundaries["class_label"] = label
-            self.logger.info("Sending rect for %s", label)
+            self.logger.debug("Sending rect for %s", label)
             self.send(center_boundaries)
         else:
             self.logger.debug(
@@ -142,7 +142,7 @@ class CameraNode(MqttNode):
             label_ints = [
                 self.identifier.number_for_label(class_text) for class_text in classes
             ]
-            self.logger.info("It reflect the following class IDs = %s" % label_ints)
+            self.logger.info("It reflects the following class IDs = %s" % label_ints)
             self.classes_to_check = label_ints
 
 
@@ -168,7 +168,7 @@ while True:
             "detected {:d} objects in image".format(len(detections))
         )
     else:
-        camera_node.logger.info(
+        camera_node.logger.debug(
             "detected {:d} objects in image".format(len(detections))
         )
 

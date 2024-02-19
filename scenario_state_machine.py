@@ -1,12 +1,10 @@
-from abc import abstractmethod
-from datetime import datetime
-from enum import Enum
-import time
-from typing import overload
-from time import sleep
+"""This defines module for a State Machine for TTbot"""
+# pylint: disable=missing-function-docstring, missing-class-docstring, broad-exception-raised
 import logging
 import os
-from mqtt_node import MqttNode
+from datetime import datetime, timedelta
+from enum import Enum
+from time import sleep
 
 
 def setup_logger(name, log_folder="logs"):
@@ -36,6 +34,8 @@ class ScenarioResult(Enum):
     TIMEOUT = 2
     FINISHED = 0
     INACTIVE = 3
+    ILLEGAL_STATE = 4
+    FAILED = 5
 
 
 class StepFactory:
@@ -52,8 +52,9 @@ step_factory = StepFactory()
 
 
 class ScenarioStateMachine:
-    def __init__(self, name, steps, mqtt_node=None):
+    def __init__(self, name, steps, mqtt_node=None, min_interval=timedelta(seconds=0)):
         self.logger = setup_logger(name)
+        self.name = name
         if len(steps) < 1:
             raise Exception("Cannot initiate state machine with 0 steps")
         self.logger.info("Creating scenario '%s' with %d steps", name, len(steps))
@@ -66,8 +67,20 @@ class ScenarioStateMachine:
         self.current_step_no = -1
         self.active = True
         self.storage = {}
+        self.last_run = datetime.strptime("2000-01-01", "%Y-%m-%d")
+        self.min_interval = min_interval
+
+    def can_run(self):
+        from_last_time_interval = datetime.now() - self.last_run
+        return from_last_time_interval > self.min_interval
+
+
 
     def start(self):
+        if not self.can_run():
+            self.logger.warning("I will not run scenario %s again,because it was just run recently",
+                                self.name)
+            return ScenarioResult.ILLEGAL_STATE
         self.active = True
         self.current_step_no = -1
         self.__execute_next_step(msg=None)
@@ -80,9 +93,9 @@ class ScenarioStateMachine:
             # self.current_step_no -= 1
             return ScenarioResult.FINISHED
         self.logger.info("Executing step#%d: %s", self.current_step_no, step.name)
-        step_is_not_async = step.execute(msg, self.storage)
-        if step_is_not_async:
-            self.__execute_next_step(msg)
+        step.execute(msg, self.storage)
+        if not step.is_async:
+            return self.__execute_next_step(msg)
         return ScenarioResult.NEXT_STEP
 
     def __current_step(self):
@@ -96,13 +109,17 @@ class ScenarioStateMachine:
             self.storage[keyname] = msg
 
     def process_message(self, msg):
-        # self.logger.debug("Processing message ")
-        # self.logger.debug(msg)
+        self.logger.debug("Processing message")
+        self.logger.debug(msg)
         if not self.active:
             return ScenarioResult.INACTIVE
         if self.__current_step().is_waiting_for(msg):
-            self.__save_to_storage_if_needed(self.__current_step(), msg)
-            return self.__execute_next_step(msg)
+            self.logger.debug("I was waiting for you, msg %s", msg)
+            if msg["msg"].startswith("error"):
+                self.logger.warning("error detected")
+            else:
+                self.__save_to_storage_if_needed(self.__current_step(), msg)
+                return self.__execute_next_step(msg)
         else:
             if self.__current_step().is_timeout():
                 self.finish_scenario()
@@ -115,6 +132,7 @@ class ScenarioStateMachine:
 
     def finish_scenario(self):
         self.logger.info("Scenario finished!")
+        self.last_run = datetime.now()
         self.active = False
 
 
@@ -145,6 +163,7 @@ class Step:
 class SleepStep(Step):
     def __init__(self, cfg, logger):
         super().__init__(cfg, logger)
+        self.is_async = False
         self.waiting_time = cfg["waiting_time"]
 
     def execute(self, msg=None, storage=None):
@@ -153,12 +172,12 @@ class SleepStep(Step):
         self.logger.info("Executing sleep for %s seconds.", self.waiting_time)
         sleep(self.waiting_time)
         self.logger.debug("Waiting finished")
-        return True
 
 
 class MqttSendStep(Step):
     def __init__(self, cfg, logger, mqtt_node) -> None:
         super().__init__(cfg, logger)
+        self.is_async = False
         self.topic_to = cfg["topic"]
         self.msg_from_config = cfg.get("msg")
         self.mqtt_node = mqtt_node
@@ -185,23 +204,22 @@ class MqttSendStep(Step):
         self.mqtt_node.send_to(topic=self.topic_to, message=msg)
         sleep(0.05)
         self.logger.debug("Message from Mqtt send Step sent.")
-        return True
 
 
 class ReceiveMsgStep(Step):
     def __init__(self, cfg, logger) -> None:
         super().__init__(cfg, logger)
+        self.is_async = True
+
         if not "timeout" in cfg:
             raise Exception("This Step requires 'timeout' configuration key")
         self.topic_listen = cfg["topic"]
 
     def execute(self, msg=None, storage=None):
         super().execute(msg, storage)
-        return False
 
     def is_waiting_for(self, msg):
         topic = msg["topic"]
         if topic == self.topic_listen:
-            self.logger.info("I was waiting for it")
             return True
         return False

@@ -1,13 +1,13 @@
-sensor_node_pid := $(shell ps -aux | grep sensor_node | grep -v grep | cut -f3 -d' ')
-camera_node_pid := $(shell ps -aux | grep camera.py | grep -v grep | cut -f3 -d' ')
-brain_node_pid := $(shell ps -aux | grep brain.py | grep -v grep | cut -f3 -d' ')
-motor_node_pid := $(shell ps -aux | grep motor_mqtt_node.py | grep -v grep | cut -f3 -d' ')
-servo_node_pid := $(shell ps -aux | grep servo_mqtt_node.py | grep -v grep | cut -f3 -d' ')
-async_photographer_node_pid  := $(shell ps -aux | grep async_photographer_node.py | grep -v grep | cut -f3 -d' ')
-speak_node_pid  := $(shell ps -aux | grep speak_node.py | grep -v grep | cut -f3 -d' ')
-openai_node_pid  := $(shell ps -aux | grep speak_node.py | grep -v grep | cut -f3 -d' ')
 
 down:
+	sensor_node_pid := $(shell ps -aux | grep sensor_node | grep -v grep | cut -f3 -d' ')
+	camera_node_pid := $(shell ps -aux | grep camera.py | grep -v grep | cut -f3 -d' ')
+	brain_node_pid := $(shell ps -aux | grep brain.py | grep -v grep | cut -f3 -d' ')
+	motor_node_pid := $(shell ps -aux | grep motor_mqtt_node.py | grep -v grep | cut -f3 -d' ')
+	servo_node_pid := $(shell ps -aux | grep servo_mqtt_node.py | grep -v grep | cut -f3 -d' ')
+	async_photographer_node_pid  := $(shell ps -aux | grep async_photographer_node.py | grep -v grep | cut -f3 -d' ')
+	speak_node_pid  := $(shell ps -aux | grep speak_node.py | grep -v grep | cut -f3 -d' ')
+	openai_node_pid  := $(shell ps -aux | grep speak_node.py | grep -v grep | cut -f3 -d' ')
 	kill -2 $(sensor_node_pid) $(camera_node_pid) $(brain_node_pid) $(motor_node_pid) $(servo_node_pid) $(speak_node_pid) $(async_photographer_node_pid) $(openai_node_pid)
 
 nobrainup: 
@@ -70,7 +70,7 @@ vision:
 	python3 openai_vision_node.py
 
 photographer:
-	python3 async_photographer_node.py /tmp/camera_take_picture
+	python3 ps.py /tmp/camera_take_picture
 
 speak:
 	python3 speak_node.py
@@ -85,3 +85,7 @@ download_images:
 
 dmesg:
 	dmesg | grep tty | grep attached 
+
+test:
+	#pytest -vvs test_scenario_state_machine.py -k "test_few_failed_finally_never_got_OK"
+	pytest 

@@ -7,12 +7,6 @@ import paho.mqtt.client as mqtt
 import serial
 
 
-def get_client():
-    client = mqtt.Client(hostname="localhost", port=1883)
-    client.connect()
-    return client
-
-
 class MqttNode:
     def __init__(
         self,
@@ -162,3 +156,5 @@ class SerialToMqttNode(MqttNode):
             if line.startswith("{"):
                 line_dict = json.loads(line)
                 self.send(line_dict)
+            else:
+                self.logger.warning("Received sth that does not look like JSON message. %s", line)

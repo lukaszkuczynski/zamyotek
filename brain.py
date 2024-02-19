@@ -1,7 +1,7 @@
 import json
 import logging
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from time import sleep
 
@@ -11,11 +11,13 @@ from common_objects import AnyObjectStack, DistanceStack
 from mqtt_node import MqttNode, MqttToSerialNode, get_client
 from scenario_state_machine import ScenarioResult, ScenarioStateMachine
 
-SIDE_AREA_PROPORTION = 0.3335
+NARROW_AREA_PROPORTION = 0.3000
+WIDE_AREA_PROPORTION = 0.4000
 # TOTAL_WID = 128   0
 TOTAL_WID = 640
 
 OBJECT_TO_TELL_DISTANCE = 20
+TELLME_MIN_INTERVAL = timedelta(seconds=40)
 
 TOPIC_SENSOR_DISTANCE = "/sensor/distance"
 TOPIC_CAMERA = "camera_out"
@@ -32,32 +34,32 @@ TOPIC_NOTIFY_SPOKEN = "/notify/spoken"
 TURNING_TIME_NOOP = 1000
 TOO_CLOSE_OBJECT_WIDTH = 800
 # AHEAD_COMMAND = "ahead,80"
-DEFAULT_AHEAD_SPEED = 120
+DEFAULT_AHEAD_SPEED = 110
 
 MOTOR_STACK_TTL=1000
-DISTANCE_STACK_TTL=500
+DISTANCE_STACK_TTL=1000
 
 class BrainMode(Enum):
     IDLE = 0
     FOLLOW = 1
     TELLME = 2
 
-last_executions = {
-    BrainMode.IDLE: datetime.now(),
-    BrainMode.FOLLOW: datetime.now(),
-    BrainMode.TELLME: datetime.now(),
-}
+
 
 class BrainNode(MqttNode):
     def __init__(self):
         self.brain_mode = BrainMode.IDLE
         self.last_move_dir = ""
-        center_left = math.floor(0 + (TOTAL_WID * SIDE_AREA_PROPORTION))
-        center_right = math.floor(TOTAL_WID - (TOTAL_WID * SIDE_AREA_PROPORTION))
+        left_wide = math.floor(0 + (TOTAL_WID * WIDE_AREA_PROPORTION))
+        center_left = math.floor(0 + (TOTAL_WID * NARROW_AREA_PROPORTION))
+        center_right = math.floor(TOTAL_WID - (TOTAL_WID * NARROW_AREA_PROPORTION))
+        right_wide = math.floor(TOTAL_WID - (TOTAL_WID * WIDE_AREA_PROPORTION))
         self.zones = [
-            [0, center_left, "left"],
-            [center_left + 1, center_right, "central"],
-            [center_right + 1, TOTAL_WID, "right"],
+            [0, left_wide, "left,wide"],
+            [left_wide, center_left, "left,narrow"],
+            [center_left, center_right, "central,0"],
+            [center_right, right_wide, "right,narrow"],
+            [right_wide, TOTAL_WID, "right,wide"],
         ]
         self.distance_stack = DistanceStack(ms_ttl=DISTANCE_STACK_TTL, max_val=1000)
         self.turning_time_noop = TURNING_TIME_NOOP
@@ -87,7 +89,7 @@ class BrainNode(MqttNode):
                 "msg": "stop",
             }, 
             {
-                "name": "look_down",
+                "name": "color red before check",
                 "type": "send_mqtt",
                 "topic": TOPIC_CMD_SERVO_HEAD,
                 "msg": "setColor,red",
@@ -119,7 +121,7 @@ class BrainNode(MqttNode):
                 "timeout": 15,
             },
             {
-                "name": "look_down",
+                "name": "color red after",
                 "type": "send_mqtt",
                 "topic": TOPIC_CMD_SERVO_HEAD,
                 "msg": "setColor,red"
@@ -151,7 +153,7 @@ class BrainNode(MqttNode):
         ]
         scenario_node = MqttNode("scenario", "", "")
         self.tell_me_scenario = ScenarioStateMachine(
-            "tell_me_scenario", steps, scenario_node
+            "tell_me_scenario", steps, scenario_node, min_interval=TELLME_MIN_INTERVAL
         )
         # this should be follow
         super().__init__(
@@ -187,10 +189,12 @@ class BrainNode(MqttNode):
                 self.tell_me_scenario.start()
             color_map = {
                 BrainMode.FOLLOW : 'green',
-                BrainMode.TELLME: 'red',
+                # BrainMode.TELLME: 'red',
                 BrainMode.IDLE: 'black'
             }
-            self.send_to(f'setColor,{color_map.get(brain_mode)}', TOPIC_CMD_SERVO_HEAD)
+            color_to_set = color_map.get(brain_mode)
+            if color_to_set:
+                self.send_to(f'setColor,{color_to_set}', TOPIC_CMD_SERVO_HEAD)
         
 
     def on_message(self, client, userdata, msg):
@@ -230,7 +234,8 @@ class BrainNode(MqttNode):
                 width = center_msg["width"]
                 for zone in self.zones:
                     if center_x >= zone[0] and center_x < zone[1]:
-                        zone_name = zone[2]
+                        zone_name = zone[2].split(",")[0]
+                        zone_additional = zone[2].split(",")[1]
                         if zone_name in ["left", "right"]:
                             if (
                                 (
@@ -244,11 +249,15 @@ class BrainNode(MqttNode):
                                 move_dir = "stop"
                             else:
                                 self.last_turning_time = datetime.now()
-                                move_dir = zone_name
+                                turning_time_dict = {
+                                    "wide": 500,
+                                    "narrow" : 250
+                                }
+                                turning_time = turning_time_dict.get(zone_additional)
+                                move_dir = f"{zone_name},{self.speed},{turning_time}"
                         else:
                             # center, we have to decide on the basis of distance
                             # default decision is to go ahead
-                            move_dir = f"ahead,{self.speed}"
                             distance = self.distance_stack.avg_distance()
                             if distance is not None:
                                 # when distance is small then we should stop and start telling what's that
@@ -265,6 +274,7 @@ class BrainNode(MqttNode):
                                     self.speed = DEFAULT_AHEAD_SPEED - 10
                                 else:
                                     self.speed = DEFAULT_AHEAD_SPEED
+                            move_dir = f"ahead,{self.speed}"
 
                         self.motor_stack.push(move_dir)
                         if move_dir != self.last_move_dir:
@@ -290,12 +300,9 @@ class BrainNode(MqttNode):
                     # when distance is small then we should stop and start telling what's that
                     if self.brain_mode == BrainMode.FOLLOW:
                         if avg_distance < OBJECT_TO_TELL_DISTANCE:
-                            self.change_mode(BrainMode.TELLME)
+                            if self.tell_me_scenario.can_run():
+                                self.change_mode(BrainMode.TELLME)
 
 
 brain = BrainNode()
 
-
-mqtt_motor_driver = MqttToSerialNode(
-    "motor_mqtt", "/cmd/motor_move", "/tty/USB0", 115200
-)

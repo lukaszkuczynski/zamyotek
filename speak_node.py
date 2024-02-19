@@ -36,7 +36,7 @@ class SpeakNode(MqttNode):
         return response
     
     def __play_wave_at_path(self, wav_path):
-        subprocess.call(["aplay", "--device","sysdefault:CARD=Device", wav_path])
+        return subprocess.call(["aplay", "--device","sysdefault:CARD=Device", wav_path])
 
 
     def __play_using_temp_file(self, polly_response):
@@ -63,9 +63,7 @@ class SpeakNode(MqttNode):
                 os.startfile(output)
             else:
                 # The following works on macOS and Linux. (Darwin = mac, xdg-open = linux).
-                opener = "open" if sys.platform == "darwin" else "xdg-open"
-#                subprocess.call([opener, output])
-                self.__play_wave_at_path(output)
+                return self.__play_wave_at_path(output)
 
     def on_message(self, client, userdata, msg):
         speak_msg = json.loads(msg.payload)
@@ -80,8 +78,11 @@ class SpeakNode(MqttNode):
             response = self.__call_polly(text_to_speak)
             self.logger.info(response)
             self.logger.info("I will speak... %s", speak_msg)
-            self.__play_using_temp_file(response)
-        self.send("spoken")
+            result = self.__play_using_temp_file(response)
+            if result == 0:
+                self.send("spoken")
+            else:
+                self.send("error")
 
 
 if __name__ == "__main__":

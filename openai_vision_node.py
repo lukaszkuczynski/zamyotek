@@ -30,6 +30,7 @@ class OpenAiVisionNode(MqttNode):
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}"
         }
+        self.logger.debug("Sending picture from %s top OpenAI", picture_path)
         payload = {
             "model": "gpt-4-vision-preview",
             "messages": [
@@ -52,9 +53,14 @@ class OpenAiVisionNode(MqttNode):
             "max_tokens": 100
         }
         response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-        print(response.json())
-        choice = self.__choose_choice(response.json()['choices'])
-        return choice['message']['content']
+        response_json = response.json()
+        self.logger.debug(response_json)
+        if "error" in response_json:
+            self.logger.error(response_json["error"]["message"])
+            return response_json["error"]["message"]
+        else:
+            choice = self.__choose_choice(response_json['choices'])
+            return choice['message']['content']
 
 
     def __encode_image(self, image_path):
