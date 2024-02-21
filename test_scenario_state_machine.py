@@ -118,7 +118,7 @@ def test_few_failed_finally_reaches_ok():
         sleep(.3)
     assert res == ScenarioResult.FINISHED
 
-def test_few_failed_finally_never_got_OK():
+def test_few_failed_never_got_OK():
     steps = [
         {
             "name": "listen_msg",
@@ -147,3 +147,39 @@ def test_few_failed_finally_never_got_OK():
         sleep(.3)
     assert machine.active is True
     assert res is None
+
+def test_finally():
+    steps = [
+        {
+            "name": "listen_msg",
+            "type": "receive_msg",
+            "topic": "/test/scenario_test_retry",
+            "timeout": .8,
+        },
+        {
+            "name": "sleep_normal",
+            "type": "sleep",
+            "waiting_time": 0.3,
+        },
+        {
+            "name": "sleep_finally",
+            "type": "sleep",
+            "is_finally": True,
+            "waiting_time": 0.3,
+        }
+    ]
+    commander_node = MqttNode("commander", "", "", autostart_listening=False)
+    machine = ScenarioStateMachine("test_scenario_msg_listen", steps, commander_node)
+    machine.start()
+    msgs = [
+        {"msg": "error:1", "topic": "/test/scenario_test_retry"},
+        {"msg": "error:2", "topic": "/test/scenario_test_retry"},
+        {"msg": "error:3", "topic": "/test/scenario_test_retry"},
+        {"msg": "ok", "topic": "/test/scenario_test_retry"},
+    ]
+    for _, msg in enumerate(msgs):
+        res = machine.process_message(msg)
+        sleep(.3)
+    assert res is ScenarioResult.TIMEOUT
+    assert machine.steps[1].was_run is False
+    assert machine.steps[2].was_run is True

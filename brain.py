@@ -8,7 +8,7 @@ from time import sleep
 import yaml
 
 from common_objects import AnyObjectStack, DistanceStack
-from mqtt_node import MqttNode, MqttToSerialNode, get_client
+from mqtt_node import MqttNode
 from scenario_state_machine import ScenarioResult, ScenarioStateMachine
 
 NARROW_AREA_PROPORTION = 0.3000
@@ -17,7 +17,7 @@ WIDE_AREA_PROPORTION = 0.4000
 TOTAL_WID = 640
 
 OBJECT_TO_TELL_DISTANCE = 20
-TELLME_MIN_INTERVAL = timedelta(seconds=40)
+TELLME_MIN_INTERVAL = timedelta(seconds=5)
 
 TOPIC_SENSOR_DISTANCE = "/sensor/distance"
 TOPIC_CAMERA = "camera_out"
@@ -143,13 +143,20 @@ class BrainNode(MqttNode):
                 "name": "wait_for_speech",
                 "type": "receive_msg",
                 "topic": TOPIC_NOTIFY_SPOKEN,
-                "timeout": 10,
+                "timeout": 12,
             },
             {
                 "name": "sleep_idle_time_after_scenario",
                 "waiting_time": 1,
                 "type": "sleep",
             },
+            {
+                "name": "finally look_up",
+                "type": "send_mqtt",
+                "topic": TOPIC_CMD_SERVO_HEAD,
+                "msg": "goup",
+                "is_finally": True
+            }
         ]
         scenario_node = MqttNode("scenario", "", "")
         self.tell_me_scenario = ScenarioStateMachine(

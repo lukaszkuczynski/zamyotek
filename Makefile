@@ -70,7 +70,7 @@ vision:
 	python3 openai_vision_node.py
 
 photographer:
-	python3 ps.py /tmp/camera_take_picture
+	python3 async_photographer_node.py /tmp/camera_take_picture
 
 speak:
 	python3 speak_node.py
@@ -87,5 +87,5 @@ dmesg:
 	dmesg | grep tty | grep attached 
 
 test:
-	#pytest -vvs test_scenario_state_machine.py -k "test_few_failed_finally_never_got_OK"
+	#pytest -vvs test_scenario_state_machine.py -k "test_finally"
 	pytest 

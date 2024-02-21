@@ -6,6 +6,7 @@ import wave
 from contextlib import closing
 from logging import log
 from tempfile import gettempdir
+from time import sleep
 
 from boto3 import Session
 from botocore.exceptions import BotoCoreError, ClientError
@@ -83,6 +84,8 @@ class SpeakNode(MqttNode):
                 self.send("spoken")
             else:
                 self.send("error")
+                sleep(.5)
+                self.on_message(client, userdata, msg)
 
 
 if __name__ == "__main__":

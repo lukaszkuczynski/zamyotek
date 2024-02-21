@@ -1,4 +1,5 @@
 """This defines module for a State Machine for TTbot"""
+
 # pylint: disable=missing-function-docstring, missing-class-docstring, broad-exception-raised
 import logging
 import os
@@ -74,12 +75,12 @@ class ScenarioStateMachine:
         from_last_time_interval = datetime.now() - self.last_run
         return from_last_time_interval > self.min_interval
 
-
-
     def start(self):
         if not self.can_run():
-            self.logger.warning("I will not run scenario %s again,because it was just run recently",
-                                self.name)
+            self.logger.warning(
+                "I will not run scenario %s again,because it was just run recently",
+                self.name,
+            )
             return ScenarioResult.ILLEGAL_STATE
         self.active = True
         self.current_step_no = -1
@@ -109,29 +110,40 @@ class ScenarioStateMachine:
             self.storage[keyname] = msg
 
     def process_message(self, msg):
-        self.logger.debug("Processing message")
-        self.logger.debug(msg)
+        # self.logger.debug("Processing message")
+        # self.logger.debug(msg)
         if not self.active:
             return ScenarioResult.INACTIVE
+        if self.__current_step().is_timeout():
+            self.logger.warning("Detected timeout.. Will finish the scenario")
+            self.finish_scenario()
+            return ScenarioResult.TIMEOUT
         if self.__current_step().is_waiting_for(msg):
             self.logger.debug("I was waiting for you, msg %s", msg)
             if msg["msg"].startswith("error"):
-                self.logger.warning("error detected")
+                self.logger.warning(
+                    "error detected, I will not proceed to the next step %s", msg["msg"]
+                )
             else:
                 self.__save_to_storage_if_needed(self.__current_step(), msg)
                 return self.__execute_next_step(msg)
         else:
-            if self.__current_step().is_timeout():
-                self.finish_scenario()
-                return ScenarioResult.TIMEOUT
             return None
 
     def interrupted(self):
         self.logger.info("checking interrupt %d", self.current_step_no)
         return not self.active and (self.current_step_no < len(self.steps))
 
+    def __run_finally_steps(self):
+        for n in range(self.current_step_no, len(self.steps)):
+            step = self.steps[n]
+            if step.is_finally_step():
+                self.logger.info("Executing one of finally steps:")
+                step.execute()
+
     def finish_scenario(self):
         self.logger.info("Scenario finished!")
+        self.__run_finally_steps()
         self.last_run = datetime.now()
         self.active = False
 
@@ -146,6 +158,9 @@ class Step:
             self.timeout = cfg["timeout"]
         self.save_to_storage_key = cfg.get("save_to_storage_key", None)
         self.read_from_storage_key = cfg.get("read_from_storage_key", None)
+        self.is_finally = cfg.get("is_finally", False)
+        self.was_run = False
+        self.started = None
 
     def is_waiting_for(self, msg):
         return False
@@ -158,6 +173,10 @@ class Step:
 
     def execute(self, msg=None, storage=None):
         self.started = datetime.now()
+        self.was_run = True
+
+    def is_finally_step(self):
+        return self.is_finally
 
 
 class SleepStep(Step):
