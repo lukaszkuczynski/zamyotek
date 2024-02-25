@@ -16,7 +16,7 @@ WIDE_AREA_PROPORTION = 0.4000
 # TOTAL_WID = 128   0
 TOTAL_WID = 640
 
-OBJECT_TO_TELL_DISTANCE = 20
+OBJECT_TO_TELL_DISTANCE = 30
 TELLME_MIN_INTERVAL = timedelta(seconds=5)
 
 TOPIC_SENSOR_DISTANCE = "/sensor/distance"
@@ -61,7 +61,7 @@ class BrainNode(MqttNode):
             [center_right, right_wide, "right,narrow"],
             [right_wide, TOTAL_WID, "right,wide"],
         ]
-        self.distance_stack = DistanceStack(ms_ttl=DISTANCE_STACK_TTL, max_val=1000)
+        self.distance_stack = DistanceStack(ms_ttl=DISTANCE_STACK_TTL, max_val=300)
         self.turning_time_noop = TURNING_TIME_NOOP
         self.last_turning_time = datetime.now()
         self.motor_stack = AnyObjectStack(ms_ttl=MOTOR_STACK_TTL)
@@ -88,12 +88,7 @@ class BrainNode(MqttNode):
                 "topic": TOPIC_MOTOR,
                 "msg": "stop",
             }, 
-            {
-                "name": "color red before check",
-                "type": "send_mqtt",
-                "topic": TOPIC_CMD_SERVO_HEAD,
-                "msg": "setColor,red",
-            },
+            {"name": "servo_travel_down", "waiting_time": .5, "type": "sleep"},
             {
                 "name": "look_down",
                 "type": "send_mqtt",
@@ -101,12 +96,6 @@ class BrainNode(MqttNode):
                 "msg": "godown",
             },
             {"name": "servo_travel_down", "waiting_time": 2, "type": "sleep"},
-            {
-                "name": "look_down",
-                "type": "send_mqtt",
-                "topic": TOPIC_CMD_SERVO_HEAD,
-                "msg": "setColor,blue",
-            },
             {
                 "name": "take_photo",
                 "type": "send_mqtt",
@@ -118,13 +107,7 @@ class BrainNode(MqttNode):
                 "type": "receive_msg",
                 "topic": TOPIC_NOTIFY_OBJECT_RECOGNIZED,
                 "save_to_storage_key": "object_class",
-                "timeout": 15,
-            },
-            {
-                "name": "color red after",
-                "type": "send_mqtt",
-                "topic": TOPIC_CMD_SERVO_HEAD,
-                "msg": "setColor,red"
+                "timeout": 20,
             },
             {
                 "name": "look_up",
@@ -154,7 +137,7 @@ class BrainNode(MqttNode):
                 "name": "finally look_up",
                 "type": "send_mqtt",
                 "topic": TOPIC_CMD_SERVO_HEAD,
-                "msg": "goup",
+                "msg": "ensureup",
                 "is_finally": True
             }
         ]
@@ -196,12 +179,12 @@ class BrainNode(MqttNode):
                 self.tell_me_scenario.start()
             color_map = {
                 BrainMode.FOLLOW : 'green',
-                # BrainMode.TELLME: 'red',
+                BrainMode.TELLME: 'red',
                 BrainMode.IDLE: 'black'
             }
             color_to_set = color_map.get(brain_mode)
             if color_to_set:
-                self.send_to(f'setColor,{color_to_set}', TOPIC_CMD_SERVO_HEAD)
+                self.change_color(color_to_set)
         
 
     def on_message(self, client, userdata, msg):
@@ -219,7 +202,7 @@ class BrainNode(MqttNode):
         elif self.brain_mode == BrainMode.TELLME:
             mode_msg = json.loads(msg.payload)
             process_result = self.tell_me_scenario.process_message(mode_msg)
-            self.logger.debug("Process result %s", process_result)
+            # self.logger.debug("Process result %s", process_result)
             if process_result in (ScenarioResult.FINISHED, ScenarioResult.INACTIVE):
                 self.logger.info(
                     "Scenario in brain finished - state %s!", process_result

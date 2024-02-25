@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import subprocess
 from time import sleep
 
 import paho.mqtt.client as mqtt
@@ -103,6 +104,10 @@ class MqttNode:
         logger.addHandler(ch)
         logger.addHandler(fh)
         return logger
+    
+    def change_color(self, color):
+        self.logger.info("Changing color to %s", color)
+        subprocess.run(["mosquitto_pub", "-t", "/cmd/servo/head_position", "-m", "{\"msg\":\"setColor,%s\"}" % color])
 
 
 class MqttToSerialNode(MqttNode):

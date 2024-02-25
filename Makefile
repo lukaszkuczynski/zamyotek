@@ -7,7 +7,7 @@ down:
 	servo_node_pid := $(shell ps -aux | grep servo_mqtt_node.py | grep -v grep | cut -f3 -d' ')
 	async_photographer_node_pid  := $(shell ps -aux | grep async_photographer_node.py | grep -v grep | cut -f3 -d' ')
 	speak_node_pid  := $(shell ps -aux | grep speak_node.py | grep -v grep | cut -f3 -d' ')
-	openai_node_pid  := $(shell ps -aux | grep speak_node.py | grep -v grep | cut -f3 -d' ')
+	openai_node_pid  := $(shell ps -aux | grep openai_vision_node.py | grep -v grep | cut -f3 -d' ')
 	kill -2 $(sensor_node_pid) $(camera_node_pid) $(brain_node_pid) $(motor_node_pid) $(servo_node_pid) $(speak_node_pid) $(async_photographer_node_pid) $(openai_node_pid)
 
 nobrainup: 

@@ -30,9 +30,9 @@ class SpeakNode(MqttNode):
         self.polly = session.client("polly")
         self.start_listening()
 
-    def __call_polly(self, text):
+    def __call_polly(self, text, lang):
         response = self.polly.synthesize_speech(
-            Text=text, OutputFormat="pcm", VoiceId="Matthew"
+            Text=text, OutputFormat="pcm", VoiceId="Matthew", LanguageCode=lang
         )
         return response
     
@@ -69,14 +69,26 @@ class SpeakNode(MqttNode):
     def on_message(self, client, userdata, msg):
         speak_msg = json.loads(msg.payload)
         message_from_openai = speak_msg["msg"]
+        lang = message_from_openai.split("|")[0]
+        text_from_openai = message_from_openai.split("|")[1]
         # text_to_speak = "I can see %s" % object_class
-        text_to_speak = message_from_openai
+        first_sentence = text_from_openai.partition(".")[0]
+        text_to_speak = first_sentence
+        lang_map = {
+            "english": "en-GB",
+            "french": "fr-FR",
+            "polish": "pl-PL",
+            "chinese": "cmn-CN",
+            "spanish": "es-ES",
+        }
+        polly_lang = lang_map.get(lang, "en-GB")
+        self.logger.info("Got lanugage %s", lang)
         if DEBUG_MODE_NO_AWS:
             # wav_path = os.path.join(gettempdir(), "zamyotek_speech.wav")
             wav_path = "/home/lukjetson/prj/jetson-voice/data/audio/command_yes.wav"
             self.__play_wave_at_path(wav_path)
         else:
-            response = self.__call_polly(text_to_speak)
+            response = self.__call_polly(text_to_speak, polly_lang)
             self.logger.info(response)
             self.logger.info("I will speak... %s", speak_msg)
             result = self.__play_using_temp_file(response)
